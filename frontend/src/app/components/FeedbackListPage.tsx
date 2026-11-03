@@ -18,6 +18,7 @@ import {
 } from "../lib/insightsFilters";
 import { CAPABILITY, hasCapability } from "./RouteGuards";
 import { RecentFeedbackBySentiment, type AiSentimentFilter } from "./RecentFeedbackBySentiment";
+import { feedbackTypeLabel } from "../lib/feedbackTypes";
 
 type FeedbackListPageProps = {
   /** This page's path; delete mode lives at `${basePath}/delete`. */
@@ -32,7 +33,7 @@ function initialListScope(params: URLSearchParams): FeedbackListScope {
   return defaultFeedbackListScope();
 }
 
-/** Every patient submission, with filters, Excel exports and (for admins) delete. */
+/** Every employee submission, with filters, Excel exports and (for admins) delete. */
 export function FeedbackListPage({ basePath }: FeedbackListPageProps) {
   const location = useLocation();
   const [searchParams] = useSearchParams();
@@ -150,13 +151,13 @@ export function FeedbackListPage({ basePath }: FeedbackListPageProps) {
 
   const handleDeleteFeedback = useCallback(
     async (item: FeedbackItem, groupItems?: FeedbackItem[]) => {
-      // A list row can hold several submissions (same patient, same day) plus their split issues.
+      // A list row can hold several submissions (same employee, same day) plus their split issues.
       // Deleting a submission removes its split issues on the server, so only top-level rows
       // need a request; a row made only of split issues deletes those.
       const rows = groupItems?.length ? groupItems : [item];
       const submissions = rows.filter((row) => !row.isSplitChild);
       const targets = submissions.length ? submissions : rows;
-      const who = item.patientName?.trim() || item.ticketId || item._id;
+      const who = item.employeeName?.trim() || item.ticketId || item._id;
       const what =
         targets.length > 1 ? `${targets.length} submissions from ${who}` : `the feedback from ${who}`;
       if (!window.confirm(`Delete ${what}? Any split issues are removed too. This cannot be undone.`)) {
@@ -198,8 +199,11 @@ export function FeedbackListPage({ basePath }: FeedbackListPageProps) {
 
   function downloadExcel(rows: FeedbackItem[], fileName: string) {
     const data = rows.map((item) => ({
-      patientName: item.patientName,
-      UHID: item.patientRegNo?.trim() || "",
+      employeeName: item.employeeName,
+      "Employee ID": item.employeeId?.trim() || "",
+      feedbackType: feedbackTypeLabel(item.feedbackType),
+      dateOfJoining: item.dateOfJoining || "",
+      lastWorkingDay: item.lastWorkingDay || "",
       department: item.department || "",
       service: item.service || "",
       rating: item.rating,
@@ -239,7 +243,7 @@ export function FeedbackListPage({ basePath }: FeedbackListPageProps) {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">Feedback</h1>
           <p className="mt-1 text-sm text-gray-600">
-            Every patient submission. Open one to read it in full or play the recording.
+            Every employee submission. Open one to read it in full or play the recording.
           </p>
         </div>
       </header>

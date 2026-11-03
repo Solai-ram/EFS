@@ -82,10 +82,18 @@ function docStats(group, rowsById) {
   };
 }
 
+/** Shown on the report and used as the group name, in the order they are listed. */
+export const FEEDBACK_TYPE_LABELS = {
+  new_joiner: "New joiner",
+  relieving: "Relieving",
+  general: "General",
+};
+
 /**
- * Recomputes and upserts SummaryReport rows (one per department, one per service) for a period.
+ * Recomputes and upserts one SummaryReport row per feedback type (new joiner, relieving, general)
+ * for a period.
  * @param {{ periodType: "weekly"|"monthly", periodKey: string, periodStart: Date, periodEnd: Date }} params
- * @returns {Promise<{ departments: number, services: number }>}
+ * @returns {Promise<{ types: number }>}
  */
 export async function generateSummaryReports({ periodType, periodKey, periodStart, periodEnd }) {
   const rows = await Feedback.find({
@@ -93,40 +101,27 @@ export async function generateSummaryReports({ periodType, periodKey, periodStar
   }).lean();
 
   const rowsById = new Map(rows.map((row) => [String(row._id), row]));
-  const deptGroups = new Map();
-  const svcGroups = new Map();
+  const typeGroups = new Map();
 
   for (const row of rows) {
     const id = String(row._id);
+    const label = FEEDBACK_TYPE_LABELS[row.feedbackType] || FEEDBACK_TYPE_LABELS.general;
     for (const slice of analyticsSlicesFromFeedback(row)) {
       const negativeText = slice.issueSummary || String(row.aiSummary || "").trim();
-
-      if (slice.department) {
-        const g = deptGroups.get(slice.department) || emptyGroup();
-        bumpSentiment(g, slice.sentiment);
-        bumpTopics(g, slice.topics, slice.sentiment);
-        g.docIds.add(id);
-        if (slice.sentiment === "negative" && negativeText) {
-          g.negativeCandidates.push({ text: negativeText, createdAt: row.createdAt });
-        }
-        deptGroups.set(slice.department, g);
+      const g = typeGroups.get(label) || emptyGroup();
+      bumpSentiment(g, slice.sentiment);
+      bumpTopics(g, slice.topics, slice.sentiment);
+      g.docIds.add(id);
+      if (slice.sentiment === "negative" && negativeText) {
+        g.negativeCandidates.push({ text: negativeText, createdAt: row.createdAt });
       }
-      if (slice.service) {
-        const g = svcGroups.get(slice.service) || emptyGroup();
-        bumpSentiment(g, slice.sentiment);
-        bumpTopics(g, slice.topics, slice.sentiment);
-        g.docIds.add(id);
-        if (slice.sentiment === "negative" && negativeText) {
-          g.negativeCandidates.push({ text: negativeText, createdAt: row.createdAt });
-        }
-        svcGroups.set(slice.service, g);
-      }
+      typeGroups.set(label, g);
     }
   }
 
   const periodLabel = periodLabelFor(periodType, periodKey);
 
-  async function persistGroup(groupType, groupName, group) {
+  for (const [groupName, group] of typeGroups) {
     const stats = docStats(group, rowsById);
     const narrative = await synthesizeSummaryReport({
       groupLabel: groupName,
@@ -140,7 +135,7 @@ export async function generateSummaryReports({ periodType, periodKey, periodStar
     });
 
     await SummaryReport.updateOne(
-      { periodType, periodKey, groupType, groupName },
+      { periodType, periodKey, groupType: "feedbackType", groupName },
       {
         $set: {
           periodStart,
@@ -159,20 +154,8 @@ export async function generateSummaryReports({ periodType, periodKey, periodStar
     );
   }
 
-  for (const [name, group] of deptGroups) {
-    await persistGroup("department", name, group);
-  }
-  for (const [name, group] of svcGroups) {
-    await persistGroup("service", name, group);
-  }
-
   // eslint-disable-next-line no-console
-  console.log("[summary-report] generated", {
-    periodType,
-    periodKey,
-    departments: deptGroups.size,
-    services: svcGroups.size,
-  });
+  console.log("[summary-report] generated", { periodType, periodKey, types: typeGroups.size });
 
-  return { departments: deptGroups.size, services: svcGroups.size };
+  return { types: typeGroups.size };
 }

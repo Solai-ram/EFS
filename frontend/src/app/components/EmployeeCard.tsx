@@ -1,9 +1,9 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { ArrowLeft, CheckCircle2, Clock, Info } from "lucide-react";
 
-/** Shared building blocks for the patient feedback screens (form, voice, bot). */
+/** Shared building blocks for the employee feedback screens (form, voice, bot). */
 
-export function PatientCard({
+export function EmployeeCard({
   kicker,
   title,
   subtitle,
@@ -103,19 +103,20 @@ export function PrimaryAction({
   );
 }
 
-export function PatientFooter({
+export function EmployeeFooter({
   onBack,
-  showTiming = false,
+  timing,
 }: {
   onBack: () => void;
-  showTiming?: boolean;
+  /** Short note such as "Takes about 5 minutes". Omit to hide. */
+  timing?: string;
 }) {
   return (
     <div className="mt-6 flex flex-col items-center gap-3 text-sm">
-      {showTiming ? (
+      {timing ? (
         <p className="inline-flex items-center gap-1.5 text-gray-500">
           <Clock className="h-3.5 w-3.5" />
-          Takes less than 20 seconds
+          {timing}
         </p>
       ) : null}
       <button
@@ -124,7 +125,7 @@ export function PatientFooter({
         className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-medium text-gray-600 transition hover:bg-white hover:text-gray-900"
       >
         <ArrowLeft className="h-4 w-4" />
-        Choose a different feedback method
+        Choose a different feedback type
       </button>
     </div>
   );

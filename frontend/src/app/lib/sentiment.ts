@@ -13,7 +13,7 @@ export function getAiSentimentBucket(
   return null;
 }
 
-/** Map patient rating (1–5) to a sentiment bucket when AI has not run yet. */
+/** Map employee rating (1–5) to a sentiment bucket when AI has not run yet. */
 export function sentimentFromRating(rating: number): "positive" | "neutral" | "negative" | null {
   if (!Number.isFinite(rating)) return null;
   if (rating <= 2) return "negative";
@@ -22,7 +22,7 @@ export function sentimentFromRating(rating: number): "positive" | "neutral" | "n
   return null;
 }
 
-/** Sentiment for admin lists: AI when available, else patient rating. */
+/** Sentiment for admin lists: AI when available, else employee rating. */
 export function getDisplaySentimentBucket(
   item: FeedbackItem
 ): "positive" | "neutral" | "negative" | null {

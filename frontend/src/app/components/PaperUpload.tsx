@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { Upload, FileCheck, X } from "lucide-react";
-import { patientRoutes } from "../lib/patientRoutes";
+import { employeeRoutes } from "../lib/employeeRoutes";
 
 export function PaperUpload() {
   const navigate = useNavigate();
@@ -15,7 +15,7 @@ export function PaperUpload() {
   };
 
   const handleSubmit = () => {
-    navigate(patientRoutes.thankYou);
+    navigate(employeeRoutes.thankYou);
   };
 
   return (
@@ -111,7 +111,7 @@ export function PaperUpload() {
         {/* Back Link */}
         <div className="text-center">
           <button
-            onClick={() => navigate(patientRoutes.home)}
+            onClick={() => navigate(employeeRoutes.home)}
             className="text-gray-500 hover:text-primary text-lg transition-colors"
           >
             ← Choose Different Method

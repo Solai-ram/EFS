@@ -40,11 +40,13 @@ import {
   visibleToHod,
 } from "../lib/hodRouting";
 import { ticketDepartment, ticketService } from "../lib/ticketFilters";
+import { feedbackTypeLabel } from "../lib/feedbackTypes";
+import { QuestionnaireAnswersList } from "./QuestionnaireAnswersList";
 
 function feedbackSourceLabel(source: string | undefined): string {
-  if (source === "staff") return "Patient (collected at desk)";
+  if (source === "staff") return "Employee (collected at desk)";
   if (source === "ai") return "AI channel";
-  return "Patient";
+  return "Employee";
 }
 
 export function TicketDetail() {
@@ -283,9 +285,9 @@ export function TicketDetail() {
   const noAiSentiment = ticket && !ticket.aiSentiment;
   const fallbackAiSummary = ticket
     ? noAiSentiment
-      ? "AI sentiment is not available yet. Review the comment text and patient rating, then follow your local escalation policy."
+      ? "AI sentiment is not available yet. Review the comment text and employee rating, then follow your local escalation policy."
       : sentimentNegative
-        ? "AI detected negative tone in the comments. Recommended: follow up with the patient and assign a department owner."
+        ? "AI detected negative tone in the comments. Recommended: follow up with the employee and assign a department owner."
         : "Monitor trends and close the ticket once reviewed."
     : "";
   const aiSummary = ticket?.aiSummary?.trim() || fallbackAiSummary;
@@ -303,9 +305,9 @@ export function TicketDetail() {
   const speechToTextText = ticket?.comments?.trim() || "";
   const botGroupNote =
     ticket?.isSplitChild && hasBotConversation
-      ? "Full bot conversation for this patient (all questions). This ticket covers one service from that session."
+      ? "Full bot conversation for this employee (all questions). This ticket covers one service from that session."
       : ticket?.botVoiceSourceFeedbackId && hasBotConversation
-        ? "Voice Q&A loaded from the linked bot submission for this patient."
+        ? "Voice Q&A loaded from the linked bot submission for this employee."
         : null;
 
   const isAssignedToHod = Boolean(
@@ -524,18 +526,18 @@ export function TicketDetail() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column - Patient Info & Feedback */}
+        {/* Left Column - Employee Info & Feedback */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Patient Information */}
+          {/* Employee Information */}
           <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
             <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
               <User size={24} className="text-brand-600" />
-              Patient Information
+              Employee Information
             </h3>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-sm text-gray-600 mb-1">Name</p>
-                <p className="text-base font-semibold text-gray-800">{ticket.patientName}</p>
+                <p className="text-base font-semibold text-gray-800">{ticket.employeeName}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-600 mb-1">Source</p>
@@ -544,23 +546,23 @@ export function TicketDetail() {
                 </p>
               </div>
               <div>
-                <p className="text-sm text-gray-600 mb-1">Feedback type</p>
+                <p className="text-sm text-gray-600 mb-1">Submitted via</p>
                 <p className="text-base font-semibold text-gray-800">{feedbackModeLabel[displayMode]}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-600 mb-1">UHID / Reg. no.</p>
-                <p className="text-base font-semibold text-gray-800">{ticket.patientRegNo?.trim() || "—"}</p>
+                <p className="text-sm text-gray-600 mb-1">Employee ID</p>
+                <p className="text-base font-semibold text-gray-800">{ticket.employeeId?.trim() || "—"}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-600 mb-1">Visit type</p>
-                <p className="text-base font-semibold text-gray-800 uppercase">
-                  {ticket.patientEncounterType === "op" ? "OP" : "—"}
+                <p className="text-sm text-gray-600 mb-1">Feedback type</p>
+                <p className="text-base font-semibold text-gray-800">
+                  {feedbackTypeLabel(ticket.feedbackType)}
                 </p>
               </div>
               <div>
-                <p className="text-sm text-gray-600 mb-1">Department (UHID / EMR)</p>
+                <p className="text-sm text-gray-600 mb-1">Department</p>
                 <p className="text-base font-semibold text-gray-800">
-                  {displayOptionalLabel(ticket.lookupDepartment || ticket.department)}
+                  {displayOptionalLabel(ticket.department)}
                 </p>
               </div>
               <div>
@@ -576,9 +578,15 @@ export function TicketDetail() {
                 </div>
               ) : null}
               <div>
-                <p className="text-sm text-gray-600 mb-1">Visit date</p>
-                <p className="text-base font-semibold text-gray-800">{ticket.visitOrAdmissionDate?.trim() || "—"}</p>
+                <p className="text-sm text-gray-600 mb-1">Date of joining</p>
+                <p className="text-base font-semibold text-gray-800">{ticket.dateOfJoining?.trim() || "—"}</p>
               </div>
+              {ticket.lastWorkingDay?.trim() ? (
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">Last working day</p>
+                  <p className="text-base font-semibold text-gray-800">{ticket.lastWorkingDay}</p>
+                </div>
+              ) : null}
               <div>
                 <p className="text-sm text-gray-600 mb-1">Current Status</p>
                 <p className="text-base font-semibold text-gray-800">{ticket.status}</p>
@@ -625,10 +633,12 @@ export function TicketDetail() {
           <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
             <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
               <MessageSquare size={24} className="text-green-600" />
-              Patient Feedback
+              Employee Feedback
             </h3>
 
-            {hasBotConversation ? (
+            {ticket.answers?.length ? (
+              <QuestionnaireAnswersList answers={ticket.answers} />
+            ) : hasBotConversation ? (
               <BotConversationFeedbackSection
                 answers={botAnswers}
                 combinedSessionUrl={ticket.voiceRecordingUrl}
@@ -652,7 +662,7 @@ export function TicketDetail() {
                   <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
                     <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2 flex items-center gap-1">
                       <Mic size={14} />
-                      Voice audio (what the patient spoke)
+                      Voice audio (what the employee spoke)
                     </p>
                     <VoiceAudioPlayer
                       src={voiceAudioSrc!}

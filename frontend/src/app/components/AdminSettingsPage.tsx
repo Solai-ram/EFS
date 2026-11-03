@@ -78,18 +78,6 @@ const MODULES: Array<{ flag: ModuleFlag; label: string; description: string }> =
     description:
       "Ticket management, ticket detail, the Tickets insights tab, the HOD queue and the ticket metrics on the Management overview. Feedback is still recorded while this is off, so existing tickets reappear when it is turned back on.",
   },
-  {
-    flag: "departmentsEnabled",
-    label: "Departments",
-    description:
-      "The Departments admin screen. Patients can still pick a department on the feedback forms, and HODs keep their department assignments.",
-  },
-  {
-    flag: "servicesEnabled",
-    label: "Services",
-    description:
-      "The Services admin screen for AI routing services. Existing services and their HOD mappings are kept while this is off.",
-  },
 ];
 
 function ModuleSwitchRow({ flag, label, description }: (typeof MODULES)[number]) {
@@ -225,7 +213,7 @@ export function AdminSettingsPage() {
         botSkipIntro,
         botSkipThinkCountdown,
       });
-      setBannerMessage("Settings saved. Patient screens update immediately.");
+      setBannerMessage("Settings saved. Employee screens update immediately.");
     } catch {
       setBannerMessage("Failed to save theme. Please try again.");
     } finally {
@@ -297,7 +285,7 @@ export function AdminSettingsPage() {
           <div>
             <h2 className="text-3xl md:text-4xl font-bold text-gray-800">Settings</h2>
             <p className="text-base text-gray-600 mt-1 max-w-2xl">
-              Color theme, voice time limit, and hospital logo for patient screens.
+              Color theme, voice time limit, and hospital logo for employee screens.
             </p>
           </div>
         </div>
@@ -370,7 +358,7 @@ export function AdminSettingsPage() {
               <h3 className="text-lg font-semibold text-gray-800">Voice feedback</h3>
               <p className="text-sm font-semibold text-gray-800 mt-2">Voice time limit</p>
               <p className="text-xs text-gray-500 mt-1">
-                Maximum time patients can speak on the voice feedback screen. They see a countdown
+                Maximum time employees can speak on the voice feedback screen. They see a countdown
                 while listening.
               </p>
             </div>
@@ -417,7 +405,7 @@ export function AdminSettingsPage() {
             <div className="space-y-2">
               <p className="text-sm font-semibold text-gray-800">Think time before each answer</p>
               <p className="text-xs text-gray-500">
-                After each question plays, patients see “சிறிது நேரம் யோசியுங்கள்…” with a countdown
+                After each question plays, employees see “சிறிது நேரம் யோசியுங்கள்…” with a countdown
                 before the microphone opens.
               </p>
               <label className="flex items-center gap-2 text-sm text-gray-700">
@@ -475,7 +463,7 @@ export function AdminSettingsPage() {
 
         <div className="bg-white rounded-xl shadow-md p-4 sm:p-5 md:p-6 lg:sticky lg:top-6 min-w-0">
           <h3 className="text-lg font-semibold text-gray-800">Live preview</h3>
-          <p className="mt-0.5 text-sm text-gray-600">How the patient welcome screen looks on a phone.</p>
+          <p className="mt-0.5 text-sm text-gray-600">How the employee welcome screen looks on a phone.</p>
 
           {/* A phone showing the welcome screen in the current colours: frame, screen, content. */}
           <div className="mt-5 flex justify-center">

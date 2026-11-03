@@ -101,7 +101,7 @@ export function FeedbackDetailDialog({ item, open, onOpenChange }: FeedbackDetai
         <DialogHeader>
           <DialogTitle className="text-xl">Feedback details</DialogTitle>
           <p className="text-sm text-gray-500">
-            {display.patientName} · {new Date(display.createdAt).toLocaleString()}
+            {display.employeeName} · {new Date(display.createdAt).toLocaleString()}
             {display.ticketId ? ` · ${display.ticketId}` : ""}
           </p>
         </DialogHeader>
@@ -183,7 +183,7 @@ export function FeedbackDetailDialog({ item, open, onOpenChange }: FeedbackDetai
               fullTranscript={display.comments}
               groupNote={
                 display.isSplitChild
-                  ? "Full bot conversation for this patient. This row is one service from that session."
+                  ? "Full bot conversation for this employee. This row is one service from that session."
                   : display.botVoiceSourceFeedbackId
                     ? "Voice Q&A from linked bot submission."
                     : null
@@ -204,7 +204,7 @@ export function FeedbackDetailDialog({ item, open, onOpenChange }: FeedbackDetai
               {hasVoice && voiceAudioVisible ? (
                 <section>
                   <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wide mb-2">
-                    Voice audio (what patient spoke)
+                    Voice audio (what employee spoke)
                   </h3>
                   <VoiceAudioPlayer
                     src={voiceSrc!}

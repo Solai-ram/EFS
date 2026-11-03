@@ -1,5 +1,5 @@
 /**
- * Drop AI topic tags that are not supported by the patient transcript.
+ * Drop AI topic tags that are not supported by the employee transcript.
  * Tamil "காத்து" is often air/ventilation, not "waiting time".
  */
 
@@ -21,7 +21,7 @@ function topicImpliesWaiting(topic) {
 
 /**
  * @param {string[]} topics
- * @param {string} comments full STT / patient text
+ * @param {string} comments full STT / employee text
  * @returns {string[]}
  */
 export function filterAiTopicsForTranscript(topics, comments) {

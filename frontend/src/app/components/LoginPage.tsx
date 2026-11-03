@@ -66,7 +66,7 @@ export function LoginPage() {
           />
         </div>
         <p className="text-center text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8A6A10] mb-2">
-          Patient Feedback System
+          Employee Feedback System
         </p>
         <h2 className="text-2xl sm:text-[1.7rem] font-bold leading-tight text-gray-900 mb-3 text-center">{HOSPITAL.name}</h2>
         <div aria-hidden="true" className="mx-auto mb-4 h-0.5 w-12 rounded-full bg-brand-gold" />

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { AlertTriangle, Building2, Layers, RefreshCw, Sparkles, Star } from "lucide-react";
+import { AlertTriangle, RefreshCw, Sparkles, Star, Users } from "lucide-react";
 import type {
   SummaryReport,
   SummaryReportGroupRow,
@@ -208,18 +208,16 @@ export function SummaryReportDashboard({
   error,
   onGenerate,
 }: Props) {
-  const [deptSort, setDeptSort] = useState<SortMode>("volume");
-  const [svcSort, setSvcSort] = useState<SortMode>("volume");
+  const [sortMode, setSortMode] = useState<SortMode>("volume");
 
-  const isEmpty =
-    !isLoading && report && report.departments.length === 0 && report.services.length === 0;
+  const isEmpty = !isLoading && report && report.types.length === 0;
 
   return (
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">Reports</h1>
         <p className="mt-1 text-sm text-gray-600">
-          A written summary of each week's or month's complaints, per department and service.
+          A written summary of each week's or month's complaints, for new joiners, relieving employees and general feedback.
         </p>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -272,7 +270,7 @@ export function SummaryReportDashboard({
       </div>
 
       <p className="text-sm text-muted-foreground">
-        Written by AI from the negative feedback, grouped by department and service
+        Written by AI from the negative feedback, grouped by feedback type
         {report ? ` · ${periodLabel(report.periodKey, periodType)}` : ""}.
       </p>
 
@@ -307,18 +305,11 @@ export function SummaryReportDashboard({
       {report && !isEmpty && (
         <div className="space-y-10">
           <GroupSection
-            title="Departments"
-            icon={<Building2 size={22} className="text-primary" />}
-            rows={report.departments}
-            sortMode={deptSort}
-            onSortModeChange={setDeptSort}
-          />
-          <GroupSection
-            title="Services"
-            icon={<Layers size={22} className="text-teal-600" />}
-            rows={report.services}
-            sortMode={svcSort}
-            onSortModeChange={setSvcSort}
+            title="By feedback type"
+            icon={<Users size={22} className="text-primary" />}
+            rows={report.types}
+            sortMode={sortMode}
+            onSortModeChange={setSortMode}
           />
         </div>
       )}

@@ -37,44 +37,42 @@ export interface BotConversationConfig {
   updatedAt?: string;
 }
 
+export type FeedbackType = "new_joiner" | "relieving" | "general";
+
+/** One answered questionnaire item (new joiner stay interview / exit interview). */
+export interface QuestionnaireAnswer {
+  questionId: string;
+  /** rating "1".."5", "yes" | "no", an option id, free text, or a list of strings. */
+  value: string | number | string[];
+  /** Optional explanation next to a rating, yes/no or choice answer. */
+  detail?: string;
+}
+
 export interface FeedbackPayload {
-  patientName: string;
-  /** Visit department: from UHID/EMR or selected hospital department (name-only) */
+  employeeName: string;
+  /** Department the employee works in (picked on the form). */
   department?: string;
-  /** Stored for analytics — same as department when known at submit */
-  lookupDepartment?: string;
   /** Optional service hint; AI normally picks service from routing catalog */
   service?: string;
   rating: number;
   comments: string;
   staffRemarks?: string;
-  source?: "patient" | "staff" | "ai";
+  source?: "employee" | "staff" | "ai";
   /** When set, multipart upload stores audio under this feedback (voice flow). */
   voiceRecording?: Blob | null;
   submissionMode?: "standard" | "voice" | "bot";
   conversationAnswers?: BotConversationAnswer[];
   answerAudioBlobs?: Blob[];
-  /** Hospital registration number / UHID when supplied or resolved via EMR lookup */
-  patientRegNo?: string;
-  patientEncounterType?: "op" | "";
-  ward?: string;
-  ipNo?: string;
-  visitOrAdmissionDate?: string;
+  employeeId: string;
+  feedbackType?: FeedbackType;
+  /** YYYY-MM-DD. Required for new joiner and relieving, optional for general. */
+  dateOfJoining?: string;
+  /** YYYY-MM-DD. Relieving only. */
+  lastWorkingDay?: string;
+  /** Questionnaire answers for new joiner and relieving. */
+  answers?: QuestionnaireAnswer[];
   /** Idempotent key from offline outbox — safe to retry POST /api/feedback */
   clientSubmissionId?: string;
-}
-
-export interface PatientLookupMatch {
-  encounterType: "op";
-  regNo: string;
-  patientName: string;
-  department: string;
-  patientType: string;
-  visitDate: string;
-  tokenNo: string;
-  frmDate: string;
-  toDate: string;
-  key: string;
 }
 
 export interface BrandingSettings {
@@ -140,10 +138,10 @@ export type CapaInput = Pick<
   writtenByUsername?: string;
 };
 
-export interface FeedbackItem extends Omit<FeedbackPayload, "voiceRecording"> {
+export interface FeedbackItem extends Omit<FeedbackPayload, "voiceRecording" | "answers"> {
   _id: string;
   status: "New" | "In Progress" | "Resolved";
-  source: "patient" | "staff" | "ai";
+  source: "employee" | "staff" | "ai";
   createdAt: string;
   updatedAt: string;
   ticketId?: string | null;
@@ -157,8 +155,15 @@ export interface FeedbackItem extends Omit<FeedbackPayload, "voiceRecording"> {
   submissionMode?: "standard" | "voice" | "bot";
   botConversationAnswers?: BotConversationAnswer[];
   service?: string;
-  /** Department from EMR at submit time (analytics source of truth) */
-  lookupDepartment?: string;
+  /** Server-normalised answers as stored (value is a string; lists are JSON). */
+  answers?: Array<{
+    questionId: string;
+    section: string;
+    questionText: string;
+    kind: "text" | "rating" | "yesno" | "choice" | "list";
+    value: string;
+    detail: string;
+  }>;
   suggestedAction?: string;
   feedbackIssues?: FeedbackIssue[];
   submissionGroupId?: string | null;
@@ -200,7 +205,7 @@ export interface FeedbackAnalytics {
   byStatus: Array<{ status: FeedbackItem["status"]; count: number }>;
   negativeByDepartment: DepartmentCountRow[];
   positiveByDepartment: DepartmentCountRow[];
-  /** All submissions with a known EMR lookup department */
+  /** All submissions with a known department */
   submissionsByDepartment: DepartmentCountRow[];
   negativeByService: ServiceCountRow[];
   positiveByService: ServiceCountRow[];
@@ -218,6 +223,32 @@ export function resolveUploadUrl(path: string | null | undefined): string | null
   return `${base}${normalized}`;
 }
 
+export type QuestionnaireQuestion = {
+  id: string;
+  section: string;
+  kind: "text" | "rating" | "yesno" | "choice" | "list";
+  required?: boolean;
+  /** "pulse" = a No counts as a concern; "blocker" = any answer is urgent. */
+  flag?: "pulse" | "blocker";
+  /** false = no explanation box; true = optional box always shown; unset = box appears on "No". */
+  detail?: boolean;
+  maxItems?: number;
+  options?: Array<{ id: string; textEn: string; textTa: string }>;
+  textEn: string;
+  textTa: string;
+};
+
+export async function getQuestionnaire(type: FeedbackType): Promise<QuestionnaireQuestion[]> {
+  const response = await apiFetch(`${API_BASE_URL}/api/questionnaires/${type}`, {
+    cache: "no-store",
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok || !Array.isArray((body as { questions?: unknown }).questions)) {
+    throw new Error("Could not load the questions");
+  }
+  return (body as { questions: QuestionnaireQuestion[] }).questions;
+}
+
 export async function getApiHealth(): Promise<{ ok: boolean; openRouterConfigured?: boolean }> {
   const response = await apiFetch(`${API_BASE_URL}/api/health`, { cache: "no-store" });
   const body = await response.json().catch(() => ({}));
@@ -230,28 +261,19 @@ export async function getApiHealth(): Promise<{ ok: boolean; openRouterConfigure
 export async function createFeedback(payload: FeedbackPayload): Promise<CreateFeedbackResponse> {
   const { voiceRecording, ...fields } = payload;
 
-  const appendEmrFields = (fd: FormData) => {
-    if (fields.patientRegNo != null && fields.patientRegNo !== "") {
-      fd.append("patientRegNo", fields.patientRegNo);
-    }
-    if (fields.lookupDepartment != null && fields.lookupDepartment !== "") {
-      fd.append("lookupDepartment", fields.lookupDepartment);
-    }
-    if (fields.patientEncounterType != null && fields.patientEncounterType !== "") {
-      fd.append("patientEncounterType", fields.patientEncounterType);
-    }
-    if (fields.ward != null && fields.ward !== "") fd.append("ward", fields.ward);
-    if (fields.ipNo != null && fields.ipNo !== "") fd.append("ipNo", fields.ipNo);
-    if (fields.visitOrAdmissionDate != null && fields.visitOrAdmissionDate !== "") {
-      fd.append("visitOrAdmissionDate", fields.visitOrAdmissionDate);
-    }
+  const appendEmployeeFields = (fd: FormData) => {
+    fd.append("employeeId", fields.employeeId);
+    if (fields.feedbackType) fd.append("feedbackType", fields.feedbackType);
+    if (fields.dateOfJoining) fd.append("dateOfJoining", fields.dateOfJoining);
+    if (fields.lastWorkingDay) fd.append("lastWorkingDay", fields.lastWorkingDay);
+    if (fields.answers?.length) fd.append("answers", JSON.stringify(fields.answers));
   };
 
   const fd = new FormData();
   if (fields.clientSubmissionId) {
     fd.append("clientSubmissionId", fields.clientSubmissionId);
   }
-  fd.append("patientName", fields.patientName);
+  fd.append("employeeName", fields.employeeName);
   if (fields.department != null && fields.department !== "") {
     fd.append("department", fields.department);
   }
@@ -266,7 +288,7 @@ export async function createFeedback(payload: FeedbackPayload): Promise<CreateFe
     "submissionMode",
     fields.submissionMode || (voiceRecording?.size ? "voice" : "standard")
   );
-  appendEmrFields(fd);
+  appendEmployeeFields(fd);
 
   if (voiceRecording && voiceRecording.size > 0) {
     const mime = voiceRecording.type || "audio/webm";
@@ -403,9 +425,8 @@ export async function createBotFeedback(
 ): Promise<CreateFeedbackResponse> {
   const { answerAudioBlobs, conversationAnswers, voiceRecording: _v, ...fields } = payload;
   const fd = new FormData();
-  fd.append("patientName", fields.patientName);
+  fd.append("employeeName", fields.employeeName);
   if (fields.department) fd.append("department", fields.department);
-  if (fields.lookupDepartment) fd.append("lookupDepartment", fields.lookupDepartment);
   if (fields.service) fd.append("service", fields.service);
   fd.append("rating", String(fields.rating));
   fd.append("comments", fields.comments ?? "");
@@ -413,11 +434,9 @@ export async function createBotFeedback(
   if (fields.source) fd.append("source", fields.source);
   fd.append("submissionMode", "bot");
   fd.append("conversationAnswers", JSON.stringify(conversationAnswers));
-  if (fields.patientRegNo) fd.append("patientRegNo", fields.patientRegNo);
-  if (fields.patientEncounterType) fd.append("patientEncounterType", fields.patientEncounterType);
-  if (fields.ward) fd.append("ward", fields.ward);
-  if (fields.ipNo) fd.append("ipNo", fields.ipNo);
-  if (fields.visitOrAdmissionDate) fd.append("visitOrAdmissionDate", fields.visitOrAdmissionDate);
+  fd.append("employeeId", fields.employeeId);
+  fd.append("feedbackType", fields.feedbackType || "general");
+  if (fields.dateOfJoining) fd.append("dateOfJoining", fields.dateOfJoining);
 
   for (let i = 0; i < answerAudioBlobs.length; i++) {
     const blob = answerAudioBlobs[i];
@@ -435,28 +454,6 @@ export async function createBotFeedback(
   return body as CreateFeedbackResponse;
 }
 
-export async function lookupPatientRecords(payload: {
-  regNo?: string;
-  patientName?: string;
-  frmDate?: string;
-  toDate?: string;
-}): Promise<{ frmDate: string; toDate: string; matches: PatientLookupMatch[] }> {
-  const response = await apiFetch(`${API_BASE_URL}/api/patient/lookup`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const msg =
-      typeof body === "object" && body && "message" in body && typeof (body as { message?: string }).message === "string"
-        ? (body as { message: string }).message
-        : "Patient lookup failed";
-    throw new Error(msg);
-  }
-  return body as { frmDate: string; toDate: string; matches: PatientLookupMatch[] };
-}
-
 export type FeedbackInsightsQuery = {
   startMs?: number;
   endMs?: number;
@@ -466,6 +463,8 @@ export type FeedbackInsightsQuery = {
   sinceMs?: number;
   /** HOD queue — only tickets assigned to this user id. */
   assignedToUserId?: string;
+  /** Limit to one questionnaire type. */
+  feedbackType?: FeedbackType;
 };
 
 function feedbackQueryString(query?: FeedbackInsightsQuery): string {
@@ -479,6 +478,9 @@ function feedbackQueryString(query?: FeedbackInsightsQuery): string {
   }
   if (query?.sinceMs != null && query.sinceMs > 0) {
     params.set("sinceMs", String(query.sinceMs));
+  }
+  if (query?.feedbackType) {
+    params.set("feedbackType", query.feedbackType);
   }
   if (query?.assignedToUserId?.trim()) {
     params.set("assignedToUserId", query.assignedToUserId.trim());
@@ -669,8 +671,8 @@ export interface SummaryReport {
   periodKey: string;
   periodStart: string | null;
   periodEnd: string | null;
-  departments: SummaryReportGroupRow[];
-  services: SummaryReportGroupRow[];
+  /** One row per feedback type: New joiner, Relieving, General. */
+  types: SummaryReportGroupRow[];
 }
 
 export async function fetchSummaryReportPeriods(

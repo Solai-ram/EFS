@@ -7,7 +7,7 @@ import dotenv from "dotenv";
 import mongoose from "mongoose";
 import { fileURLToPath } from "url";
 import path from "path";
-import { analyzePatientFeedback } from "../src/openRouterAnalysis.js";
+import { analyzeEmployeeFeedback } from "../src/openRouterAnalysis.js";
 import { combineFeedbackTextForAi } from "../src/feedbackText.js";
 import { filterAiTopicsForTranscript } from "../src/aiTopicsFilter.js";
 import { aiSentimentOnly } from "../src/botConversation.js";
@@ -81,11 +81,11 @@ async function main() {
     if (!commentsForAi) continue;
 
     try {
-      const ai = await analyzePatientFeedback(
+      const ai = await analyzeEmployeeFeedback(
         {
-          patientName: row.patientName,
-          patientDepartment: row.lookupDepartment || row.department,
-          department: row.lookupDepartment || row.department,
+          employeeName: row.employeeName,
+          employeeDepartment: row.department,
+          department: row.department,
           service: row.service,
           comments: commentsForAi,
         },
@@ -118,7 +118,7 @@ async function main() {
       // eslint-disable-next-line no-console
       console.log("[reanalyze] updated", {
         id: String(row._id),
-        patientName: row.patientName,
+        employeeName: row.employeeName,
         aiSentiment: sentiment,
         summary: ai.summary?.slice(0, 80),
       });
@@ -127,7 +127,7 @@ async function main() {
       // eslint-disable-next-line no-console
       console.error("[reanalyze] failed", {
         id: String(row._id),
-        patientName: row.patientName,
+        employeeName: row.employeeName,
         message: err?.message || String(err),
       });
     }

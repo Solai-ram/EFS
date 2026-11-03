@@ -70,7 +70,7 @@ function handleExpiredSession(): void {
 /**
  * fetch() with the bearer token attached when one is stored.
  *
- * Patient kiosk endpoints are anonymous — with no stored session the request
+ * Employee kiosk endpoints are anonymous — with no stored session the request
  * simply goes out without the header, exactly as before.
  */
 export async function apiFetch(input: string, init: RequestInit = {}): Promise<Response> {

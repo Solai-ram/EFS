@@ -53,7 +53,7 @@ export function collectSentimentSlices(items: FeedbackItem[]): SentimentSlice[] 
   for (const row of items) {
     if (row.isSplitChild) {
       const sentiment = sentimentFromRow(row);
-      const department = normalizeDepartment(row.department || row.lookupDepartment);
+      const department = normalizeDepartment(row.department);
       if (!sentiment) continue;
       out.push({
         department,
@@ -82,7 +82,7 @@ export function collectSentimentSlices(items: FeedbackItem[]): SentimentSlice[] 
         const first = issues?.[0];
         const sentiment = sentimentFromRow(row, first?.sentiment);
         const department = normalizeDepartment(
-          first?.department || row.lookupDepartment || row.department
+          first?.department || row.department
         );
         if (sentiment) {
           out.push({
@@ -106,7 +106,7 @@ export function collectSentimentSlices(items: FeedbackItem[]): SentimentSlice[] 
       for (const issue of issues) {
         const sentiment = sentimentFromRow(row, issue.sentiment);
         const department = normalizeDepartment(
-          issue.department || row.lookupDepartment || row.department
+          issue.department || row.department
         );
         if (!sentiment) continue;
         out.push({
@@ -121,7 +121,7 @@ export function collectSentimentSlices(items: FeedbackItem[]): SentimentSlice[] 
     }
 
     const sentiment = sentimentFromRow(row);
-    const department = normalizeDepartment(row.lookupDepartment || row.department);
+    const department = normalizeDepartment(row.department);
     if (!sentiment) continue;
     out.push({
       department,

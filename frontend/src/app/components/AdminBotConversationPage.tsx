@@ -9,7 +9,7 @@ import {
   type BotConversationConfig,
   type BotConversationQuestion,
 } from "../lib/api";
-import { patientRoutes } from "../lib/patientRoutes";
+import { employeeRoutes } from "../lib/employeeRoutes";
 
 const MAX_QUESTIONS = 30;
 
@@ -104,7 +104,7 @@ export function AdminBotConversationPage() {
       setError("At least one question is required.");
       return;
     }
-    if (!window.confirm(`Remove question ${idx + 1}? Save to apply on the patient bot flow.`)) {
+    if (!window.confirm(`Remove question ${idx + 1}? Save to apply on the employee bot flow.`)) {
       return;
     }
     setDraftQuestions((prev) =>
@@ -204,7 +204,7 @@ export function AdminBotConversationPage() {
           <code className="break-all text-xs bg-gray-100 px-1 rounded">uploads/feedback-voice/ai_voice/</code>
         </p>
         <p className="text-sm text-primary mt-2 font-medium">
-          Patient link: <span className="font-mono">{patientRoutes.bot}</span>
+          Employee link: <span className="font-mono">{employeeRoutes.bot}</span>
         </p>
       </div>
 
@@ -218,7 +218,7 @@ export function AdminBotConversationPage() {
       ) : null}
       {dirty ? (
         <p className="text-sm text-amber-900 bg-amber-50 border border-amber-100 rounded-lg p-3">
-          You have unsaved text or question changes. Click <strong>Save questions</strong> so patients see them.
+          You have unsaved text or question changes. Click <strong>Save questions</strong> so employees see them.
         </p>
       ) : null}
 

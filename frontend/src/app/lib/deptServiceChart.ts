@@ -20,9 +20,9 @@ type DeptNode = {
   services: Map<string, SentimentCounts>;
 };
 
-/** AI routing department for an issue (not EMR visit department). */
+/** AI routing department for an issue (not the employee's own department). */
 function routingDepartmentFromIssue(item: FeedbackItem, issueDept?: string): string {
-  return sanitizeOptionalLabel(issueDept || item.department || item.lookupDepartment);
+  return sanitizeOptionalLabel(issueDept || item.department);
 }
 
 function serviceLabelForChart(

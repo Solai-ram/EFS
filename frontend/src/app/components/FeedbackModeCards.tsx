@@ -1,21 +1,25 @@
 import { ChevronRight } from "lucide-react";
 import { useNavigate } from "react-router";
 import { feedbackModeChoices } from "../lib/feedbackModeChoices";
+import type { FeedbackModeChoice } from "../lib/feedbackModeChoices";
+import type { FeedbackTypeChoice } from "../lib/feedbackTypes";
 
 type FeedbackModeCardsProps = {
   primaryColor: string;
+  /** Defaults to the three general-feedback modes. */
+  choices?: Array<FeedbackModeChoice | FeedbackTypeChoice>;
 };
 
 /**
- * The three ways to give feedback. Phones get compact tappable rows (icon, text, chevron) so
+ * Three tappable options (feedback type, or general-feedback mode). Phones get compact tappable rows (icon, text, chevron) so
  * all three fit on one screen; from small tablets up they are tall cards side by side.
  */
-export function FeedbackModeCards({ primaryColor }: FeedbackModeCardsProps) {
+export function FeedbackModeCards({ primaryColor, choices = feedbackModeChoices }: FeedbackModeCardsProps) {
   const navigate = useNavigate();
 
   return (
     <div className="mb-8 grid grid-cols-1 items-stretch gap-3 sm:grid-cols-3 sm:gap-4">
-      {feedbackModeChoices.map((choice) => {
+      {choices.map((choice) => {
         const Icon = choice.icon;
         return (
           <button

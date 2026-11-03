@@ -41,7 +41,7 @@ export function buildVoiceRatingUserPrompt(transcript) {
 
 /**
  * @param {{
- *   emrDepartment: string;
+ *   employeeDepartment: string;
  *   serviceHint: string;
  *   comments: string;
  *   serviceChoices: { name: string; description?: string }[];
@@ -49,28 +49,28 @@ export function buildVoiceRatingUserPrompt(transcript) {
  * }} params
  */
 export function buildFeedbackAnalysisUserPrompt(params) {
-  const { emrDepartment, serviceHint, comments, serviceChoices, departmentChoices } = params;
+  const { employeeDepartment, serviceHint, comments, serviceChoices, departmentChoices } = params;
   const svc = catalogNamesPipe(serviceChoices);
   const svcLine = svc ? `<svc>${esc(svc)}</svc>` : `<svc/>`;
   const dept = catalogNamesPipe(departmentChoices || []);
   const deptLine = dept ? `<dept>${esc(dept)}</dept>` : `<dept/>`;
 
-  return `<j>Analyze patient feedback→JSON; ground all fields in patient text and any [Remark] lines</j>
-<ctx dept="${esc(emrDepartment || "-")}" hint="${esc(serviceHint || "-")}"/>
+  return `<j>Analyze employee feedback (new-joiner stay interview, exit interview or general)→JSON; ground all fields in employee text and any [Remark] lines</j>
+<ctx dept="${esc(employeeDepartment || "-")}" hint="${esc(serviceHint || "-")}"/>
 <txt>${esc(comments || "")}</txt>
 ${deptLine}
 ${svcLine}
 <r>
-[Remark] lines are extra notes collected with the feedback—always include them in sentiment, topics, issues, and summary together with patient text.
+[Remark] lines are extra notes collected with the feedback—always include them in sentiment, topics, issues, and summary together with employee text.
 rating:integer 1-5 from overall tone (ta/en); 5 praise 4 good 3 mixed 2 poor 1 very poor; align with sentiment.
 sentiment+urgency from txt; vague→neutral.
 topics:1-5 English tags from txt only; no Wait/Nurse/Bill/Food unless said.
-ta:காத்து=air/AC not wait;பாத்ரூம்→Cleanliness/Housekeeping; wait tag only if wait/காத்திருப்பு.
+ta:காத்து=air/AC not wait;பாத்ரூம்→Cleanliness/Housekeeping.
 recommendedService: exact name from svc pipe or "".
-issues: list every distinct problem, complaint, concern, or praise area explicitly mentioned in txt (patient answers + [Remark]); split into separate issues when topics, departments, or services clearly differ; include minor issues if the patient or remark stated them; do not invent issues absent from txt; pure praise→one positive issue; mixed feedback with multiple topics→multiple issues; cap at 8 issues.
+issues: list every distinct problem, complaint, concern, or praise area explicitly mentioned in txt (employee answers + [Remark]); split into separate issues when topics, departments, or services clearly differ; include minor issues if the employee or remark stated them; do not invent issues absent from txt; pure praise→one positive issue; mixed feedback with multiple topics→multiple issues; cap at 8 issues.
 each issue sentiment must match ONLY that issueSummary text (positive praise→positive even if another Q was negative).
-Bot txt has Q:/A: blocks: rate each A separately; do not copy overall negative to a positive answer.
-each issue department: exact name from dept pipe, or ctx dept when the issue clearly belongs to the patient's visit department; recommendedService: exact name from svc pipe or "".
+Q:/A: blocks (bot or questionnaire): rate each A separately; do not copy overall negative to a positive answer. Yes/No and N/5 answers count: a No on role clarity, tools, team support or mentor availability is a concern; Red/blocker items are urgent; exit reasons (salary, manager, growth) are the root cause.
+each issue department: exact name from dept pipe, or ctx dept when the issue clearly belongs to the employee's own department; recommendedService: exact name from svc pipe or "".
 each:{department,recommendedService,issueSummary,suggestedAction,sentiment per issue}.
 </r>
 <o>{"rating":3,"sentiment":"","urgency":"low|medium|high","topics":[],"summary":"","recommendedService":"","issues":[]}</o>`;
@@ -91,14 +91,14 @@ export function buildSummaryReportUserPrompt(params) {
   const summaryLines = summaries.map((s) => esc(s.slice(0, 150))).join("\n");
   const topicsLine = topTopics.map((t) => `${esc(t.topic)}(${t.count})`).join("|");
 
-  return `<j>Synthesize ${summaries.length} negative-sentiment patient-feedback summaries into one short complaint rollup report for a department/service over a period</j>
+  return `<j>Synthesize ${summaries.length} negative-sentiment employee-feedback summaries into one short complaint rollup report for one type of employee feedback (new joiner, relieving or general) over a period</j>
 <ctx group="${esc(groupLabel)}" period="${esc(periodLabel)}"/>
 <stats pos=${sentimentCounts.positive} neu=${sentimentCounts.neutral} neg=${sentimentCounts.negative} urgLow=${urgencyCounts.low} urgMed=${urgencyCounts.medium} urgHigh=${urgencyCounts.high}/>
 <topics>${topicsLine}</topics>
 <s>${summaryLines}</s>
 <r>
-Each line in &lt;s&gt; is one prior AI summary of a negative patient review only.
-Write narrative: 2-4 sentences, plain English, for hospital staff review.
+Each line in &lt;s&gt; is one prior AI summary of a negative employee review only.
+Write narrative: 2-4 sentences, plain English, for HR review.
 Focus only on recurring complaint themes, their severity, and any urgent/high-risk pattern if present.
 Do not mention praise or positive feedback; do not invent facts not implied by the lines; do not repeat raw counts already in &lt;stats&gt;.
 </r>

@@ -14,20 +14,19 @@ function readApiError(body: unknown): string {
 function buildFeedbackFormData(payload: OutboxPayload, clientSubmissionId: string): FormData {
   const fd = new FormData();
   fd.append("clientSubmissionId", clientSubmissionId);
-  fd.append("patientName", payload.patientName);
+  fd.append("employeeName", payload.employeeName);
   if (payload.department) fd.append("department", payload.department);
-  if (payload.lookupDepartment) fd.append("lookupDepartment", payload.lookupDepartment);
   if (payload.service) fd.append("service", payload.service);
   fd.append("rating", String(payload.rating));
   fd.append("comments", payload.comments ?? "");
   if (payload.staffRemarks?.trim()) fd.append("staffRemarks", payload.staffRemarks.trim());
   if (payload.source) fd.append("source", payload.source);
   fd.append("submissionMode", payload.submissionMode || "standard");
-  if (payload.patientRegNo) fd.append("patientRegNo", payload.patientRegNo);
-  if (payload.patientEncounterType) fd.append("patientEncounterType", payload.patientEncounterType);
-  if (payload.ward) fd.append("ward", payload.ward);
-  if (payload.ipNo) fd.append("ipNo", payload.ipNo);
-  if (payload.visitOrAdmissionDate) fd.append("visitOrAdmissionDate", payload.visitOrAdmissionDate);
+  if (payload.employeeId) fd.append("employeeId", payload.employeeId);
+  if (payload.feedbackType) fd.append("feedbackType", payload.feedbackType);
+  if (payload.dateOfJoining) fd.append("dateOfJoining", payload.dateOfJoining);
+  if (payload.lastWorkingDay) fd.append("lastWorkingDay", payload.lastWorkingDay);
+  if (payload.answers?.length) fd.append("answers", JSON.stringify(payload.answers));
   return fd;
 }
 

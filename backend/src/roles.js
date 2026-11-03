@@ -79,7 +79,7 @@ export const DEFAULT_ROLES = [
   {
     key: "staff",
     label: "Staff",
-    description: "Submits feedback on behalf of patients and views the feedback log.",
+    description: "Submits feedback on behalf of employees and views the feedback log.",
     capabilities: [C.FEEDBACK_READ_ALL, C.INSIGHTS_VIEW, C.INSIGHTS_OVERVIEW],
     isSystem: true,
     isProtected: false,

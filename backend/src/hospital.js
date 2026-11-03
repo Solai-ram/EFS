@@ -3,43 +3,49 @@
  * Keep in sync with frontend/src/app/lib/hospital.ts.
  */
 export const HOSPITAL = {
-  name: "Adhiparasakthi Dental College And Hospital",
-  shortName: "APDCH",
+  name: "Adhiparasakthi Hospitals",
+  shortName: "APH",
   /** Tamil name with the locative suffix ("at the hospital"), used in the bot greeting. */
-  nameTaLocative: "ஆதிபராசக்தி பல் மருத்துவக் கல்லூரி மற்றும் மருத்துவமனையில்",
+  nameTaLocative: "ஆதிபராசக்தி மருத்துவமனைகளில்",
   /** Default brand colours (admins can change them in Settings; "Reset" returns to these). */
   theme: {
     primaryColor: "#8B1538",
     accentColor: "#C9A227",
     pageBackgroundColor: "#FAF7F2",
   },
-  /** Clinical departments seeded into a new database (`npm run seed`). Admins manage them afterwards. */
+  /**
+   * Departments seeded into a new database (`npm run seed`). Admins manage them afterwards.
+   * Starter list only: edit it on the Departments screen to match the APH org chart.
+   */
   departments: [
-    { name: "Oral Medicine & Radiology", description: "Diagnosis, oral medicine and dental imaging" },
-    { name: "Conservative Dentistry & Endodontics", description: "Fillings, restorations and root canal treatment" },
-    { name: "Oral & Maxillofacial Surgery", description: "Extractions, jaw and facial surgery" },
-    { name: "Orthodontics & Dentofacial Orthopaedics", description: "Braces, aligners and jaw growth correction" },
-    { name: "Prosthodontics and Crown & Bridge", description: "Dentures, crowns and bridges" },
-    { name: "Periodontics & Implantology", description: "Gum treatment and periodontal care" },
-    { name: "Pedodontics & Preventive Dentistry", description: "Children's dental care and prevention" },
-    { name: "Public Health Dentistry", description: "Community dental health and outreach" },
-    { name: "Oral & Maxillofacial Pathology", description: "Biopsies and oral disease diagnosis" },
-    { name: "Department of Implantology", description: "Dental implant treatment" },
+    { name: "General Medicine", description: "Medical wards and outpatient clinics" },
+    { name: "General Surgery", description: "Surgical wards and operation theatres" },
+    { name: "Obstetrics & Gynaecology", description: "Maternity and women's health" },
+    { name: "Paediatrics", description: "Children's wards and clinics" },
+    { name: "Emergency & Critical Care", description: "Casualty, ICU and emergency response" },
+    { name: "Nursing Services", description: "Nursing staff across all wards" },
+    { name: "Laboratory & Radiology", description: "Diagnostics and imaging" },
+    { name: "Pharmacy", description: "Medicines and dispensing" },
+    { name: "Administration", description: "Front office, records and general administration" },
+    { name: "Human Resources", description: "Recruitment, payroll and employee welfare" },
+    { name: "Housekeeping & Maintenance", description: "Cleaning, engineering and upkeep" },
+    { name: "Academic & Training", description: "Teaching, induction and skill development" },
   ],
   /**
-   * Non-clinical services the AI routes each complaint or compliment to (service analytics).
+   * Employee-experience topics the AI routes each concern or compliment to (service analytics).
    * Seeded by `npm run seed` when missing; admins manage them on the Services screen.
    */
   services: [
-    { name: "Front Office", description: "Registration, appointments and reception" },
-    { name: "Billing", description: "Charges, invoices and payments" },
-    { name: "Pharmacy", description: "Medicines and dispensing" },
-    { name: "House Keeping", description: "Cleaning, washrooms and clinic hygiene" },
-    { name: "Nursing", description: "Dental assistants and chairside support" },
-    { name: "Transport", description: "College bus and van service for patients" },
-    { name: "Engineering", description: "Dental chairs, equipment and building maintenance" },
-    { name: "Security", description: "Parking, gate and visitor access" },
-    { name: "Canteen", description: "Food and drinking water for patients and visitors" },
-    { name: "IT Support", description: "Reports, systems and the patient portal" },
+    { name: "Induction & Training", description: "Orientation, mentoring and skill development" },
+    { name: "Salary & Benefits", description: "Pay, allowances, incentives and statutory benefits" },
+    { name: "Leave & Attendance", description: "Leave, shifts, rosters and attendance records" },
+    { name: "Work Environment", description: "Team culture, workload and working conditions" },
+    { name: "Management & Supervision", description: "Manager support, guidance and recognition" },
+    { name: "Career Growth", description: "Promotion, transfers and learning opportunities" },
+    { name: "Tools & Equipment", description: "Equipment, software access and supplies needed for the job" },
+    { name: "Facilities & Housing", description: "Hostel, staff quarters, canteen and rest areas" },
+    { name: "Transport", description: "Staff bus and commute" },
+    { name: "Safety & Security", description: "Workplace safety, security and grievance handling" },
+    { name: "IT Support", description: "Systems, logins and hospital software" },
   ],
 };

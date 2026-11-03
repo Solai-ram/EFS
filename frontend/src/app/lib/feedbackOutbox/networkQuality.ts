@@ -46,7 +46,7 @@ export function getDelayBeforeVoiceUploadMs(): number {
   return 4_000;
 }
 
-/** Quick inline retries right after patient taps Submit. */
+/** Quick inline retries right after employee taps Submit. */
 export function getSubmitQuickRetryCount(): number {
   const q = getNetworkQuality();
   if (q === "offline") return 0;

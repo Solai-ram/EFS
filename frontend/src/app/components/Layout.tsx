@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "./ui/sheet";
 import { getSession, logout } from "../lib/auth";
-import { isUserFeedPath, patientRoutes } from "../lib/patientRoutes";
+import { isUserFeedPath, employeeRoutes } from "../lib/employeeRoutes";
 import feedbackLogo from "./image/hospital_logo.png";
 import { HOSPITAL } from "../lib/hospital";
 import {
@@ -42,8 +42,6 @@ export function Layout() {
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
   const { enabled: ticketingEnabled } = useTicketingEnabled();
-  const { enabled: departmentsEnabled } = useModuleEnabled("departmentsEnabled");
-  const { enabled: servicesEnabled } = useModuleEnabled("servicesEnabled");
 
   const session = getSession();
   const capabilities = session?.capabilities ?? [];
@@ -59,9 +57,9 @@ export function Layout() {
   const isHod = session?.role === "hod";
   const canSeeDashboard = capabilities.includes("insights.view");
   const path = location.pathname;
-  const isPatientKioskScreen = isUserFeedPath(path);
+  const isEmployeeKioskScreen = isUserFeedPath(path);
   const isStaffRoute =
-    !isPatientKioskScreen &&
+    !isEmployeeKioskScreen &&
     (path.includes("staff") ||
     path.includes("dashboard") ||
     path.includes("management") ||
@@ -104,12 +102,6 @@ export function Layout() {
     { label: "Feedback", to: "/admin/feedback", active: onFeedbackList },
     { label: "Dashboard", to: "/admin", active: onDashboard },
     { label: "Reports", to: "/admin/reports", active: onReports },
-    departmentsEnabled && {
-      label: "Departments",
-      to: "/admin/departments",
-      active: path === "/admin/departments",
-    },
-    servicesEnabled && { label: "Services", to: "/admin/services", active: path === "/admin/services" },
     { label: "Users", to: "/admin/users", active: path === "/admin/users" },
     canManageRoles && { label: "Roles", to: "/admin/roles", active: path === "/admin/roles" },
     ticketingEnabled && {
@@ -128,7 +120,7 @@ export function Layout() {
   const solidButton =
     "shrink-0 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-medium text-white transition-all duration-200";
 
-  const showSectionNav = !isPatientKioskScreen && showHeaderActions;
+  const showSectionNav = !isEmployeeKioskScreen && showHeaderActions;
 
   // The same sections, with icons, for the phone/tablet sidebar.
   const navIcons: Record<string, LucideIcon> = {
@@ -142,7 +134,7 @@ export function Layout() {
     Tickets: Ticket,
     "Bot Q&A": Bot,
     Settings,
-    "Patient View": ClipboardList,
+    "Employee View": ClipboardList,
     "Submit feedback": ClipboardList,
     "My queue": Inbox,
   };
@@ -152,7 +144,7 @@ export function Layout() {
   } else if (isAdmin) {
     drawerLinks = [
       { label: "Dashboard", to: "/admin", active: false },
-      { label: "Patient View", to: patientRoutes.home, active: false },
+      { label: "Employee View", to: employeeRoutes.home, active: false },
     ];
   } else if (isHod) {
     drawerLinks = canSeeDashboard
@@ -171,7 +163,7 @@ export function Layout() {
             { label: "Reports", to: "/insights/reports", active: onReports },
           ]
         : []),
-      { label: "Submit feedback", to: patientRoutes.home, active: false },
+      { label: "Submit feedback", to: employeeRoutes.home, active: false },
     ];
   }
   const hasDrawer = showSectionNav && drawerLinks.length > 0;
@@ -208,8 +200,8 @@ export function Layout() {
         <button type="button" onClick={() => navigate("/admin")} className={solidButton} style={activePrimaryBackgroundStyle}>
           Dashboard
         </button>
-        <button type="button" onClick={() => navigate(patientRoutes.home)} className={outlineButton(false)}>
-          Patient View
+        <button type="button" onClick={() => navigate(employeeRoutes.home)} className={outlineButton(false)}>
+          Employee View
         </button>
       </div>
     );
@@ -242,7 +234,7 @@ export function Layout() {
       <div className="flex flex-nowrap items-center gap-2">
         <button
           type="button"
-          onClick={() => navigate(patientRoutes.home)}
+          onClick={() => navigate(employeeRoutes.home)}
           className={solidButton}
           style={activePrimaryBackgroundStyle}
         >
@@ -322,7 +314,7 @@ export function Layout() {
                   </span>
                 </h1>
                 <p className="truncate text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8A6A10] sm:text-[11px]">
-                  Patient Feedback System
+                  Employee Feedback System
                 </p>
               </div>
             </div>
@@ -368,7 +360,7 @@ export function Layout() {
 
       {/* Main Content — wider canvas so dashboards use horizontal space */}
       <main className="flex-1 w-full max-w-[min(100%,1600px)] mx-auto overflow-x-clip px-3 sm:px-5 py-6">
-        {isPatientKioskScreen && <FeedbackOutboxStatus />}
+        {isEmployeeKioskScreen && <FeedbackOutboxStatus />}
         <Outlet />
       </main>
 
@@ -386,7 +378,7 @@ export function Layout() {
                   {HOSPITAL.shortName}
                 </SheetTitle>
                 <SheetDescription className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#8A6A10]">
-                  Patient Feedback System
+                  Employee Feedback System
                 </SheetDescription>
               </div>
             </div>

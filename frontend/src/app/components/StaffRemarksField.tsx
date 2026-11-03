@@ -15,7 +15,7 @@ export function FeedbackRemarkField({ value, onChange }: FeedbackRemarkFieldProp
       <textarea
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="e.g. Collected at the desk, patient needed assistance…"
+        placeholder="e.g. Collected at the desk, employee needed assistance…"
         className="w-full h-24 px-4 py-3 text-sm text-gray-900 border border-gray-300 rounded-xl outline-none resize-none bg-white transition placeholder:text-gray-400 focus:border-primary focus:ring-4 focus:ring-primary/10"
       />
     </div>

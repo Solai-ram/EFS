@@ -2,7 +2,7 @@ import { Navigate, Outlet, useLocation, useOutletContext } from "react-router";
 import { getSession } from "../lib/auth";
 import { useModuleEnabled } from "../lib/branding";
 import type { ModuleFlag } from "../lib/api";
-import { patientRoutes } from "../lib/patientRoutes";
+import { employeeRoutes } from "../lib/employeeRoutes";
 
 /**
  * Route guards check CAPABILITIES, not role names, so a role whose permissions
@@ -95,14 +95,6 @@ export function RequireTicketing() {
   return <RequireModule module="ticketingEnabled" />;
 }
 
-export function RequireDepartments() {
-  return <RequireModule module="departmentsEnabled" />;
-}
-
-export function RequireServices() {
-  return <RequireModule module="servicesEnabled" />;
-}
-
 /** First insights tab the session may open: the overview when allowed, else submissions. */
 export function insightsLandingPath(basePath: string): string {
   return hasCapability(CAPABILITY.INSIGHTS_OVERVIEW)
@@ -122,7 +114,7 @@ export function landingRouteForSession(): string {
   if (held.includes(CAPABILITY.INSIGHTS_VIEW)) return "/insights";
   if (held.includes(CAPABILITY.FEEDBACK_READ_ASSIGNED)) return "/dashboard";
   if (held.includes(CAPABILITY.FEEDBACK_READ_ALL)) return "/dashboard";
-  return patientRoutes.home;
+  return employeeRoutes.home;
 }
 
 /** Admin console: anything that manages users, roles, catalogs or settings. */
@@ -152,8 +144,6 @@ export function AdminGuard() {
   const required: Array<[string, string[]]> = [
     ["/admin/users", [CAPABILITY.USERS_MANAGE]],
     ["/admin/roles", [CAPABILITY.ROLES_MANAGE]],
-    ["/admin/departments", [CAPABILITY.DEPARTMENTS_MANAGE]],
-    ["/admin/services", [CAPABILITY.SERVICES_MANAGE]],
     ["/admin/settings", [CAPABILITY.SETTINGS_MANAGE, CAPABILITY.BRANDING_MANAGE]],
     ["/admin/bot-conversation", [CAPABILITY.SETTINGS_MANAGE]],
   ];

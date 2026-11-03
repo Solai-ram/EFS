@@ -24,6 +24,11 @@ export function buildFeedbackInsightsFilter(query = {}) {
     filter.assignedToUserId = new mongoose.Types.ObjectId(assignedToUserId);
   }
 
+  const feedbackType = String(query.feedbackType || "").trim();
+  if (["new_joiner", "relieving", "general"].includes(feedbackType)) {
+    filter.feedbackType = feedbackType;
+  }
+
   return filter;
 }
 
@@ -31,6 +36,7 @@ export function hasInsightsFilterQuery(query = {}) {
   return (
     (Number.isFinite(Number(query.startMs)) && Number.isFinite(Number(query.endMs))) ||
     (Number.isFinite(Number(query.sinceMs)) && Number(query.sinceMs) > 0) ||
-    Boolean(String(query.assignedToUserId || "").trim())
+    Boolean(String(query.assignedToUserId || "").trim()) ||
+    Boolean(String(query.feedbackType || "").trim())
   );
 }

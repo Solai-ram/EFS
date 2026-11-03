@@ -10,19 +10,18 @@ export type OutboxStatus =
 
 export type OutboxPayload = Pick<
   FeedbackPayload,
-  | "patientName"
+  | "employeeName"
   | "department"
-  | "lookupDepartment"
   | "service"
   | "rating"
   | "comments"
   | "source"
   | "submissionMode"
-  | "patientRegNo"
-  | "patientEncounterType"
-  | "ward"
-  | "ipNo"
-  | "visitOrAdmissionDate"
+  | "employeeId"
+  | "feedbackType"
+  | "dateOfJoining"
+  | "lastWorkingDay"
+  | "answers"
   | "staffRemarks"
 >;
 

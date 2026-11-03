@@ -38,7 +38,7 @@ Thumbs.db
 *credentials*
 *passwords*
 
-# Patient recordings and uploads stay out of git; only the AI Voice Guide prompts are tracked.
+# Employee recordings and uploads stay out of git; only the AI Voice Guide prompts are tracked.
 backend/uploads/*
 !backend/uploads/feedback-voice/
 backend/uploads/feedback-voice/*

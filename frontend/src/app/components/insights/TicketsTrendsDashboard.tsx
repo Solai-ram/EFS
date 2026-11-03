@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { CATEGORICAL_PALETTE, colorsForKeys, STATUS_COLORS } from "../../lib/chartPalette";
+import { CATEGORICAL_PALETTE, STATUS_COLORS } from "../../lib/chartPalette";
 import {
   Bar,
   BarChart,
@@ -14,7 +14,6 @@ import {
   YAxis,
 } from "recharts";
 import { AlertCircle, CheckCircle2, ClipboardList, Clock, Split } from "lucide-react";
-import { sanitizeOptionalLabel } from "../../lib/fieldSanitize";
 import {
   buildStatusBuckets,
   buildSubmissionsByHour,
@@ -31,7 +30,7 @@ import type { InsightsDataState } from "./useInsightsData";
 import { useCategoryAxis } from "../../lib/useCategoryAxis";
 
 // Colour comes from the shared, validated chart palette (see chartPalette.ts) --
-// keyed to the department name, not to array position.
+// keyed to the category name, not to array position.
 const CHART_CARD = "rounded-2xl shadow-sm border border-gray-100 transition-shadow hover:shadow-md hover:border-teal-200";
 
 type Props = Pick<
@@ -89,34 +88,6 @@ export function TicketsTrendsDashboard({
 
   const ticketsByHour = useMemo(() => buildSubmissionsByHour(ticketRows), [ticketRows]);
 
-  const departmentVolume = useMemo(() => {
-    const byDept: Record<string, number> = {};
-    for (const row of ticketRows) {
-      const key = sanitizeOptionalLabel(row.department || row.lookupDepartment);
-      if (!key) continue;
-      byDept[key] = (byDept[key] || 0) + 1;
-    }
-    const top = Object.entries(byDept)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 6);
-    const colors = colorsForKeys(top.map(([name]) => name));
-    return top.map(([name, value]) => ({ name, value, color: colors[name] }));
-  }, [ticketRows]);
-
-  const serviceVolume = useMemo(() => {
-    const byService: Record<string, number> = {};
-    for (const row of ticketRows) {
-      const key = sanitizeOptionalLabel(row.service);
-      if (!key) continue;
-      byService[key] = (byService[key] || 0) + 1;
-    }
-    const top = Object.entries(byService)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 6);
-    const colors = colorsForKeys(top.map(([name]) => name));
-    return top.map(([name, value]) => ({ name, value, color: colors[name] }));
-  }, [ticketRows]);
-
   const statusPie = [
     { name: "New", value: statusNew, color: STATUS_COLORS.new },
     { name: "In Progress", value: statusInProgress, color: STATUS_COLORS.inProgress },
@@ -141,7 +112,7 @@ export function TicketsTrendsDashboard({
     <div className="space-y-8">
       <p className="text-sm text-muted-foreground">
         Complaint tickets raised from feedback (each split issue counts as its own ticket when AI
-        finds multiple problems in one visit). Click any metric or chart to view ticket details.
+        finds multiple problems in one submission). Click any metric or chart to view ticket details.
       </p>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
@@ -396,80 +367,6 @@ export function TicketsTrendsDashboard({
                       onClick={(d) => {
                         const point = d.payload as HourPoint;
                         if (point?.count) openChart({ type: "hour", hour: point.hour });
-                      }}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <Card className={CHART_CARD}>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg">Tickets by department</CardTitle>
-              <CardDescription>
-                Routing / visit department · {periodLabel} · click a slice
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {departmentVolume.length === 0 ? (
-                <p className="text-muted-foreground text-sm py-12 text-center">No department data.</p>
-              ) : (
-                <ResponsiveContainer width="100%" height={Math.max(220, departmentVolume.length * 40)}>
-                  <BarChart
-                    data={departmentVolume}
-                    layout="vertical"
-                    margin={{ left: 8, right: 24, top: 8, bottom: 8 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#E8E1D9" horizontal={false} />
-                    <XAxis type="number" allowDecimals={false} />
-                    <YAxis type="category" dataKey="name" width={axis.width(140)} tick={axis.tick} />
-                    <Tooltip formatter={(value: number) => [`${value} ticket(s)`, "Count"]} />
-                    <Bar
-                      dataKey="value"
-                      radius={[0, 4, 4, 0]}
-                      cursor="pointer"
-                      onClick={(d) => {
-                        const name = (d.payload as { name?: string })?.name;
-                        if (name) openChart({ type: "department", name });
-                      }}
-                    >
-                      {departmentVolume.map((entry) => (
-                        <Cell key={entry.name} fill={entry.color} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className={CHART_CARD}>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg">Tickets by service</CardTitle>
-              <CardDescription>AI routing service · {periodLabel} · click a bar</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {serviceVolume.length === 0 ? (
-                <p className="text-muted-foreground text-sm py-12 text-center">No service data.</p>
-              ) : (
-                <ResponsiveContainer width="100%" height={280}>
-                  <BarChart data={serviceVolume} layout="vertical">
-                    <CartesianGrid strokeDasharray="3 3" stroke="#E8E1D9" />
-                    <XAxis type="number" allowDecimals={false} />
-                    <YAxis dataKey="name" type="category" width={axis.width(120)} tick={axis.tick} />
-                    <Tooltip />
-                    <Bar
-                      dataKey="value"
-                      fill={CATEGORICAL_PALETTE[0]}
-                      name="Tickets"
-                      radius={[0, 8, 8, 0]}
-                      cursor="pointer"
-                      onClick={(d) => {
-                        const name = String((d.payload as PiePoint)?.name || "");
-                        if (name) openChart({ type: "service", name });
                       }}
                     />
                   </BarChart>

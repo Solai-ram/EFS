@@ -2,7 +2,7 @@
 
 :root {
   --font-size: 16px;
-  /* APDCH maroon & gold. Admin Settings override --primary, --brand-gold and --background at
+  /* APH maroon & gold. Admin Settings override --primary, --brand-gold and --background at
      runtime (lib/branding.ts); components use the primary / brand-* / brand-gold tokens so they follow. */
   --brand-gold: #c9a227;
   --background: #faf7f2;

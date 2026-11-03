@@ -21,7 +21,7 @@ import {
   type TicketAssigneeFilter,
   type TicketStatusFilter,
 } from "../lib/ticketFilters";
-import { buildFlatTicketGroups } from "../lib/patientFeedbackGroups";
+import { buildFlatTicketGroups } from "../lib/employeeFeedbackGroups";
 import {
   fetchFeedbackChanges,
   fetchFeedbackList,
@@ -33,7 +33,7 @@ import {
   patchFeedbackCache,
   setFeedbackCache,
 } from "../lib/feedbackCache";
-import { PatientGroupedFeedbackTable } from "./PatientGroupedFeedbackTable";
+import { EmployeeGroupedFeedbackTable } from "./EmployeeGroupedFeedbackTable";
 import {
   deleteFeedback,
   getHospitalDepartments,
@@ -285,7 +285,7 @@ export function AdminTicketsPage() {
     assigneeFilter,
   ]);
 
-  const patientGroups = useMemo(
+  const employeeGroups = useMemo(
     () => buildFlatTicketGroups(sortedItems),
     [sortedItems]
   );
@@ -606,7 +606,7 @@ export function AdminTicketsPage() {
         activeChips={activeFilterChips}
         hasActiveFilters={hasDimensionFilters}
         onClearAll={clearAllFilters}
-        resultCount={patientGroups.length}
+        resultCount={employeeGroups.length}
         totalCount={ticketRows.length}
         resultUnit="tickets"
         assigneeFilter={assigneeFilter}
@@ -619,7 +619,7 @@ export function AdminTicketsPage() {
           <p className="p-6 text-gray-600">Loading tickets...</p>
         ) : error ? (
           <p className="p-6 text-red-600">{error}</p>
-        ) : !patientGroups.length ? (
+        ) : !employeeGroups.length ? (
           <p className="p-6 text-gray-600">
             {ticketRows.length && hasDimensionFilters
               ? "No tickets match the selected filters."
@@ -630,8 +630,8 @@ export function AdminTicketsPage() {
             <p className="px-4 py-2 text-xs text-gray-500 border-b border-gray-100 bg-gray-50/80">
               One row per ticket · split issues are separate and can each be assigned to a different HOD
             </p>
-            <PatientGroupedFeedbackTable
-              groups={patientGroups}
+            <EmployeeGroupedFeedbackTable
+              groups={employeeGroups}
               variant="tickets"
               onViewItem={(item) =>
                 navigate(isDeleteMode ? `/ticket/${item._id}/delete` : `/ticket/${item._id}`)

@@ -14,58 +14,68 @@ import { sanitizeOptionalLabel } from "./fieldSanitize";
  */
 const CANONICAL_TOPICS: Array<{ label: string; pattern: RegExp }> = [
   {
+    label: "Salary & Benefits",
+    pattern:
+      /(salary|salaries|\bpay\b|payslip|pay\s*slip|wage|incentive|bonus|overtime|allowance|increment|\bpf\b|\besi\b|gratuity|benefit|reimburse|deduction)/i,
+  },
+  {
+    label: "Leave & Attendance",
+    pattern: /(leave|attendance|roster|rota|shift|off\s*day|holiday|duty\s*hours|timing|punctual)/i,
+  },
+  {
+    label: "Workload & Staffing",
+    pattern:
+      /(workload|work\s*load|overwork|overload|understaff|short\s*staff|staff\s*shortage|manpower|burnout|stress|pressure|long\s*hours)/i,
+  },
+  {
+    label: "Induction & Training",
+    pattern: /(induction|orientation|onboard|training|mentor|learning|upskill|skill\s*development)/i,
+  },
+  {
+    label: "Career Growth",
+    pattern: /(promotion|career|growth|designation|transfer|advancement|opportunit)/i,
+  },
+  {
+    label: "Management & Supervision",
+    pattern:
+      /(manager|management|supervis|\bhod\b|\bboss\b|recogni[sz]|apprecia|guidance|favou?rit|leadership)/i,
+  },
+  {
+    label: "Tools & IT Systems",
+    pattern:
+      /(equipment|\btool|instrument|machine|supplies|software|\blogin\b|password|computer|\bit\b|system|server|portal|access)/i,
+  },
+  {
     label: "Cleanliness & Housekeeping",
     pattern:
       /(clean|unclean|dirty|hygien|sanitat|housekeep|house\s*keep|toilet|bathroom|washroom|restroom|garbage|waste|smell|odou?r)/i,
   },
   {
     label: "Transport & Access",
+    pattern: /(transport|ambulance|rickshaw|\bauto\b|vehicle|\bbus\b|\bvan\b|parking|travel|commut)/i,
+  },
+  {
+    label: "Food & Canteen",
+    pattern: /(food|canteen|diet|meal|breakfast|lunch|dinner|kitchen|drinking\s*water)/i,
+  },
+  {
+    label: "Facilities & Housing",
     pattern:
-      /(transport|ambulance|rickshaw|\bauto\b|vehicle|\bbus\b|\bvan\b|parking|travel|commut)/i,
+      /(hostel|quarters|housing|accommodation|rest\s*room|\broom|\bac\b|air\s*condition|\bfan\b|lift|elevator|facilit|infrastructur|building|power|electric|water\s*supply|wifi)/i,
   },
   {
-    label: "Food & Diet",
-    pattern: /(food|canteen|diet|meal|breakfast|lunch|dinner|kitchen)/i,
-  },
-  {
-    label: "Waiting Time & Delays",
-    pattern: /(wait|queue|queued|delay|slow|took\s+too\s+long|long\s+time)/i,
-  },
-  {
-    label: "Billing & Charges",
-    pattern: /(bill|cost|charge|payment|price|expensive|refund|insurance|money|\bfee)/i,
-  },
-  {
-    label: "Doctor Care",
-    pattern: /(doctor|physician|surgeon|consultant|consultation|consult)/i,
-  },
-  {
-    label: "Nursing Care",
-    pattern: /(nurse|nursing|sister)/i,
-  },
-  {
-    label: "Treatment & Medication",
-    pattern:
-      /(treatment|medicine|medication|pharmacy|drug|diagnos|therapy|injection|surgery|operation|\blab\b|scan|x[\s-]*ray|report|breath)/i,
-  },
-  {
-    label: "Facilities & Infrastructure",
-    pattern:
-      /(\broom|\bward|\bbed\b|\bac\b|air\s*condition|\bfan\b|lift|elevator|facilit|infrastructur|building|power|electric|water\s*supply|wifi)/i,
-  },
-  {
-    label: "Registration & Appointments",
-    pattern: /(registration|register|token|appointment)/i,
+    label: "Safety & Security",
+    pattern: /(safety|unsafe|security|harass|violence|threat|night\s*duty|lighting|abuse)/i,
   },
   {
     label: "Communication & Information",
     pattern:
-      /(communicat|information|inform|explain|explanation|guidance|guide|language|response|responsive)/i,
+      /(communicat|information|inform|explain|explanation|clarity|clear\s*instruction|language|response|responsive)/i,
   },
   {
-    label: "Staff Behaviour",
+    label: "Team & Colleagues",
     pattern:
-      /(staff|reception|front\s*office|security|attender|attendant|behaviou?r|rude|courtes|helpful|attitude|polite)/i,
+      /(colleague|co-?worker|teamwork|\bteam\b|cooperat|bully|staff|behaviou?r|rude|courtes|helpful|attitude|polite)/i,
   },
 ];
 
@@ -171,7 +181,7 @@ export function collectComplaintSlices(items: FeedbackItem[]): ComplaintSlice[] 
       if (!isNegative(row)) continue;
       push(
         row,
-        row.department || row.lookupDepartment || "",
+        row.department || "",
         row.service || "",
         "",
         row.ticketId || ""
@@ -188,7 +198,7 @@ export function collectComplaintSlices(items: FeedbackItem[]): ComplaintSlice[] 
       if (!isNegative(row, first?.sentiment)) continue;
       push(
         row,
-        first?.department || row.lookupDepartment || row.department || "",
+        first?.department || row.department || "",
         first?.recommendedService || row.service || "",
         first?.issueSummary || "",
         first?.ticketId || row.ticketId || ""
@@ -201,7 +211,7 @@ export function collectComplaintSlices(items: FeedbackItem[]): ComplaintSlice[] 
         if (!isNegative(row, issue.sentiment)) continue;
         push(
           row,
-          issue.department || row.lookupDepartment || row.department || "",
+          issue.department || row.department || "",
           issue.recommendedService || row.service || "",
           issue.issueSummary || "",
           issue.ticketId || row.ticketId || ""
@@ -211,7 +221,7 @@ export function collectComplaintSlices(items: FeedbackItem[]): ComplaintSlice[] 
     }
 
     if (!isNegative(row)) continue;
-    push(row, row.lookupDepartment || row.department || "", row.service || "", "", row.ticketId || "");
+    push(row, row.department || "", row.service || "", "", row.ticketId || "");
   }
 
   return out;

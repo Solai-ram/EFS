@@ -49,7 +49,7 @@ export interface FeedbackVoiceSectionProps {
   onVoiceError: (message: string | null) => void;
   /** Full-session recording blob for server upload (parallel to segmented transcription). */
   onVoiceRecordingReady?: (blob: Blob | null) => void;
-  /** Compact UI for staff remark capture (no patient rating needed). */
+  /** Compact UI for staff remark capture (no employee rating needed). */
   variant?: "default" | "staffRemarks";
   /** Skip OpenRouter rating inference (staff notes only need transcript). */
   skipRatingInference?: boolean;
@@ -823,7 +823,7 @@ export function FeedbackVoiceSection({
                 />
               </div>
               <p className="text-xs text-gray-400">
-                Up to {formatCountdown(maxRecordingSeconds)} per visit
+                Up to {formatCountdown(maxRecordingSeconds)} per recording
               </p>
             </div>
           </>

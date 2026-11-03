@@ -6,6 +6,7 @@ import {
   onBrandingSettingsChange,
 } from "../lib/branding";
 import { FeedbackModeCards } from "./FeedbackModeCards";
+import { feedbackTypeChoices } from "../lib/feedbackTypes";
 import { HOSPITAL } from "../lib/hospital";
 
 export function Welcome() {
@@ -36,24 +37,24 @@ export function Welcome() {
           >
             <Heart className="w-12 h-12 sm:w-16 sm:h-16 text-white" fill="white" />
           </div>
-          <div className="text-sm text-gray-500 mb-2">Service Completed</div>
+          <div className="text-sm text-gray-500 mb-2">Employee Feedback System</div>
         </div>
 
-        <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2 sm:mb-3 text-gray-800">Thank you for visiting</h1>
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2 sm:mb-3 text-gray-800">Your voice matters</h1>
         <h2 className="text-[1.7rem] sm:text-3xl md:text-[2.6rem] font-bold leading-tight tracking-tight mb-4 text-balance" style={{ color: primaryColor }}>
           {HOSPITAL.name}
         </h2>
 
         <p className="text-base sm:text-lg md:text-xl text-gray-600 mb-6 sm:mb-8 leading-relaxed">
-          Your feedback helps us improve care
+          Your feedback helps us make this a better place to work
         </p>
 
-        <p className="text-sm font-semibold text-gray-700 mb-4">How would you like to share feedback?</p>
+        <p className="text-sm font-semibold text-gray-700 mb-4">What would you like to share?</p>
 
-        <FeedbackModeCards primaryColor={primaryColor} />
+        <FeedbackModeCards primaryColor={primaryColor} choices={feedbackTypeChoices} />
 
         <p className="text-sm text-gray-500 mb-6">
-          Hospital staff helping a patient use the same options above.
+          HR staff helping an employee use the same options above.
         </p>
       </div>
     </div>

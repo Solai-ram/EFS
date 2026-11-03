@@ -52,7 +52,7 @@ export function rateLimit({ name, max, windowMs = TEN_MINUTES_MS }) {
 }
 
 /**
- * Defaults allow a busy kiosk (several patients behind one hospital IP) while stopping
+ * Defaults allow a busy kiosk (several employees behind one hospital IP) while stopping
  * scripted abuse. Override per deployment in backend/.env.
  */
 export const limitFeedbackSubmit = rateLimit({
@@ -71,8 +71,4 @@ export const limitSpeechToText = rateLimit({
 export const limitAiInference = rateLimit({
   name: "AI rating inference",
   max: envLimit("RATE_LIMIT_AI_INFER_PER_10MIN", 100),
-});
-export const limitPatientLookup = rateLimit({
-  name: "patient lookup",
-  max: envLimit("RATE_LIMIT_PATIENT_LOOKUP_PER_10MIN", 30),
 });

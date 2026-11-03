@@ -203,7 +203,7 @@ export type DashboardTables = {
 };
 
 /**
- * Department and service rows count each issue the patient raised once (an AI Voice Guide visit
+ * Department and service rows count each issue the employee raised once (an AI Voice Guide visit
  * can praise one service and criticise another). A scoped user (HOD) sees only their own
  * departments and services, even when a feedback also mentions others.
  */

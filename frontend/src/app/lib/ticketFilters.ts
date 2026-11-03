@@ -4,7 +4,7 @@ import { sanitizeOptionalLabel } from "./fieldSanitize";
 export type TicketStatusFilter = "all" | "New" | "In Progress" | "Resolved" | "pending";
 
 export function ticketDepartment(item: FeedbackItem): string {
-  return sanitizeOptionalLabel(item.lookupDepartment || item.department) || "";
+  return sanitizeOptionalLabel(item.department) || "";
 }
 
 /** Voice transcripts and AI mistakes must not appear as routing service names. */

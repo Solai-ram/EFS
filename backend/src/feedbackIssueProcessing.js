@@ -30,10 +30,10 @@ export function buildComplaintSignature(department, service, comments) {
 
 /**
  * @param {import("mongoose").Model} Feedback
- * @param {{ patientName: string; rating: number; complaintSignature: string }} params
+ * @param {{ employeeName: string; rating: number; complaintSignature: string }} params
  */
 export async function evaluateTicketForFeedback(Feedback, params) {
-  const { patientName, rating, complaintSignature } = params;
+  const { employeeName, rating, complaintSignature } = params;
   const numericRating = Number(rating);
   let ticketId = null;
   let ticketRule = "none";
@@ -65,9 +65,9 @@ export async function evaluateTicketForFeedback(Feedback, params) {
     }
 
     const distinctUsers = new Set(
-      similarRows.map((row) => String(row.patientName || "").trim().toLowerCase())
+      similarRows.map((row) => String(row.employeeName || "").trim().toLowerCase())
     );
-    distinctUsers.add(String(patientName).trim().toLowerCase());
+    distinctUsers.add(String(employeeName).trim().toLowerCase());
 
     const firstSeenAt = similarRows[0] ? new Date(similarRows[0].createdAt).getTime() : Date.now();
     const ageHours = (Date.now() - firstSeenAt) / (1000 * 60 * 60);
@@ -83,7 +83,7 @@ export async function evaluateTicketForFeedback(Feedback, params) {
       }
       return {
         ticketId: newId,
-        ticketRule: "normal_after_24h_multi_patient",
+        ticketRule: "normal_after_24h_multi_employee",
         ticketIsFresh: true,
       };
     }

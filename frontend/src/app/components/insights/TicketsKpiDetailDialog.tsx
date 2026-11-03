@@ -38,9 +38,8 @@ function matchesSearch(item: FeedbackItem, query: string): boolean {
   const q = query.trim().toLowerCase();
   if (!q) return true;
   const hay = [
-    item.patientName,
-    item.patientRegNo,
-    item.lookupDepartment,
+    item.employeeName,
+    item.employeeId,
     item.department,
     item.service,
     item.comments,
@@ -102,10 +101,10 @@ export function TicketsKpiDetailDialog({
     downloadExcel(
       `tickets-${safeTitle}-${safePeriod}-${stamp}.xlsx`,
       [
-        "Patient name",
-        "UHID",
+        "Employee name",
+        "Employee ID",
         "Ticket ID",
-        "Visit type",
+        "Feedback type",
         "Department",
         "Service",
         "Rating",
@@ -116,11 +115,11 @@ export function TicketsKpiDetailDialog({
         "Comments",
       ],
       filteredRows.map((item) => [
-        item.patientName,
-        item.patientRegNo?.trim() || "",
+        item.employeeName,
+        item.employeeId?.trim() || "",
         item.ticketId || "",
-        visitTypeLabel(item.patientEncounterType),
-        item.department || item.lookupDepartment || "",
+        visitTypeLabel(item.feedbackType),
+        item.department || "",
         item.service || "",
         item.rating,
         getAiSentimentBucket(item) ?? "",
@@ -132,7 +131,7 @@ export function TicketsKpiDetailDialog({
     );
   };
 
-  const description = `${label} for ${periodLabel}. Search by name, UHID, ticket ID, or department.`;
+  const description = `${label} for ${periodLabel}. Search by name, employee ID, ticket ID, or department.`;
 
   return (
     <>
@@ -179,7 +178,7 @@ export function TicketsKpiDetailDialog({
                 type="search"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search name, UHID, ticket ID…"
+                placeholder="Search name, employee ID, ticket ID…"
                 className="w-full rounded-lg border border-gray-200 py-2 pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
             </div>
@@ -192,10 +191,10 @@ export function TicketsKpiDetailDialog({
               <table className="w-full text-sm border-collapse">
                 <thead className="sticky top-0 z-30 border-b border-gray-200">
                   <tr>
-                    <th className={TABLE_HEAD}>Patient</th>
-                    <th className={TABLE_HEAD}>UHID</th>
+                    <th className={TABLE_HEAD}>Employee</th>
+                    <th className={TABLE_HEAD}>Employee ID</th>
                     <th className={TABLE_HEAD}>Ticket</th>
-                    <th className={TABLE_HEAD}>Visit</th>
+                    <th className={TABLE_HEAD}>Type</th>
                     <th className={TABLE_HEAD}>Department</th>
                     <th className={TABLE_HEAD}>Service</th>
                     <th className={`${TABLE_HEAD} text-center`}>Rating</th>
@@ -215,18 +214,18 @@ export function TicketsKpiDetailDialog({
                         setDetailOpen(true);
                       }}
                     >
-                      <td className={`${TABLE_CELL} font-medium text-gray-800`}>{item.patientName}</td>
+                      <td className={`${TABLE_CELL} font-medium text-gray-800`}>{item.employeeName}</td>
                       <td className={`${TABLE_CELL} font-mono text-xs text-gray-600`}>
-                        {item.patientRegNo?.trim() || "—"}
+                        {item.employeeId?.trim() || "—"}
                       </td>
                       <td className={`${TABLE_CELL} font-mono text-xs text-gray-700`}>
                         {item.ticketId || "—"}
                       </td>
                       <td className={`${TABLE_CELL} text-xs text-gray-600`}>
-                        {visitTypeLabel(item.patientEncounterType)}
+                        {visitTypeLabel(item.feedbackType)}
                       </td>
                       <td className={`${TABLE_CELL} text-gray-600`}>
-                        {item.department || item.lookupDepartment || "—"}
+                        {item.department || "—"}
                       </td>
                       <td className={`${TABLE_CELL} text-gray-600`}>{item.service || "—"}</td>
                       <td className={`${TABLE_CELL} text-center tabular-nums`}>{item.rating}</td>

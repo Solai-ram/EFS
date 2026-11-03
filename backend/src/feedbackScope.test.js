@@ -10,7 +10,7 @@ test("unrestricted users see everything", () => {
 
 test("a HOD sees feedback about their department, by any department field", () => {
   assert.equal(feedbackInScope({ department: "Orthodontics" }, hod), true);
-  assert.equal(feedbackInScope({ lookupDepartment: "Orthodontics" }, hod), true);
+  assert.equal(feedbackInScope({ department: "Orthodontics" }, hod), true);
   assert.equal(
     feedbackInScope({ department: "Oral Surgery", feedbackIssues: [{ department: "Orthodontics" }] }, hod),
     true

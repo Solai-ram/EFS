@@ -50,7 +50,7 @@ type TicketFiltersPanelProps = {
   onClearAll: () => void;
   resultCount: number;
   totalCount: number;
-  /** Label for result count, e.g. "patients" or "tickets" */
+  /** Label for result count, e.g. "employees" or "tickets" */
   resultUnit?: string;
   assigneeFilter: TicketAssigneeFilter;
   onAssigneeFilterChange: (v: TicketAssigneeFilter) => void;

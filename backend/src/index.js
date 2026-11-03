@@ -7,7 +7,7 @@ import bcrypt from "bcryptjs";
 import path from "path";
 import fs from "fs/promises";
 import {
-  analyzePatientFeedback,
+  analyzeEmployeeFeedback,
   resolveServiceFromAi,
   resolveServiceHintWithOpenRouter,
   inferRatingFromVoiceTranscript,
@@ -20,7 +20,7 @@ import {
   newSubmissionGroupId,
   resolveServiceHeuristic,
 } from "./feedbackIssueProcessing.js";
-import { sanitizeOptionalLabel, sanitizePatientName } from "./fieldSanitize.js";
+import { sanitizeOptionalLabel, sanitizeEmployeeName } from "./fieldSanitize.js";
 import {
   analyticsDepartmentFromFeedback,
   analyticsSlicesFromFeedback,
@@ -29,11 +29,6 @@ import {
 } from "./feedbackSlices.js";
 import { combineFeedbackTextForAi } from "./feedbackText.js";
 import { filterAiTopicsForTranscript } from "./aiTopicsFilter.js";
-import {
-  lookupPatientRecords,
-  isEmrPatientLookupEnabled,
-  listEmrDepartments,
-} from "./emrPatientLookup.js";
 import {
   Branding,
   Department,
@@ -55,6 +50,13 @@ import {
   registerBotConversationRoutes,
   saveBotAnswerRecording,
 } from "./botConversation.js";
+import {
+  FEEDBACK_TYPES,
+  getQuestionnaire,
+  normalizeFeedbackType,
+  processQuestionnaireAnswers,
+} from "./employeeQuestionnaires.js";
+import { introText, registerQuestionnaireSpeechRoutes } from "./questionnaireSpeech.js";
 import {
   CAPABILITIES,
   attachUser,
@@ -79,7 +81,7 @@ import {
 import { createPendingAiWorker } from "./pendingAiWorker.js";
 import { buildFeedbackInsightsFilter } from "./insightsFeedbackQuery.js";
 import { createSummaryReportWorker } from "./summaryReportScheduler.js";
-import { generateSummaryReports } from "./summaryReportBuilder.js";
+import { FEEDBACK_TYPE_LABELS, generateSummaryReports } from "./summaryReportBuilder.js";
 import { currentPeriodKey, periodRangeForKey } from "./reportPeriods.js";
 import { HOSPITAL } from "./hospital.js";
 import { isPublicUploadPath, requireUploadAccess, uploadUrlForRel } from "./uploadAccess.js";
@@ -87,7 +89,6 @@ import { applyFeedbackScope, feedbackInScope, feedbackScopeForRequest } from "./
 import {
   limitAiInference,
   limitFeedbackSubmit,
-  limitPatientLookup,
   limitSpeechToText,
   limitVoiceAttach,
 } from "./rateLimit.js";
@@ -101,10 +102,10 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 // Rate limits key on the client IP. In production two proxies sit in front of the API (host
 // nginx, then the frontend container's nginx); trusting exactly that many hops makes req.ip the
-// patient's address and ignores any X-Forwarded-For a client sends itself.
+// employee's address and ignores any X-Forwarded-For a client sends itself.
 app.set("trust proxy", Number(process.env.TRUST_PROXY_HOPS ?? 2));
 
-/** Patient voice uploads: 10 minutes of browser-recorded Opus is a few MB, so this leaves headroom. */
+/** Employee voice uploads: 10 minutes of browser-recorded Opus is a few MB, so this leaves headroom. */
 const VOICE_ATTACH_WINDOW_MS = 24 * 60 * 60 * 1000;
 const PATIENT_UPLOAD_MAX_BYTES = 25 * 1024 * 1024;
 const MONGODB_URI =
@@ -117,7 +118,7 @@ app.use(compression());
 app.use(cors(buildCorsOptions()));
 app.use(express.json());
 // Decodes the bearer token when present. Routes opt in to enforcement with
-// requireAuth / requireCapability â€” the patient kiosk endpoints stay anonymous.
+// requireAuth / requireCapability â€” the employee kiosk endpoints stay anonymous.
 app.use(attachUser);
 
 const speechUpload = multer({
@@ -167,7 +168,7 @@ function uploadsCorsAndOptions(req, res, next) {
   next();
 }
 
-// Patient recordings need a signed link (see uploadAccess.js); AI Voice Guide prompts stay public.
+// Employee recordings need a signed link (see uploadAccess.js); AI Voice Guide prompts stay public.
 app.use("/uploads", uploadsCorsAndOptions, requireUploadAccess, express.static(UPLOADS_ROOT));
 
 function attachVoicePlaybackUrl(doc) {
@@ -184,6 +185,7 @@ function attachVoicePlaybackUrl(doc) {
 function toFeedbackListRow(doc) {
   const plain = attachVoicePlaybackUrl(doc);
   delete plain.botConversationAnswers;
+  delete plain.answers;
   delete plain.voiceRecordingRelPath;
   delete plain.voiceRecordingUrl;
   delete plain.botVoiceSourceFeedbackId;
@@ -307,7 +309,7 @@ async function enrichFeedbackWithGroupDonor(row) {
  * of the Mongoâ†’Node transfer entirely instead of paying for them and discarding
  * them. Everything else is kept, so list output is byte-identical.
  */
-const LITE_LIST_PROJECTION = "-botConversationAnswers";
+const LITE_LIST_PROJECTION = "-botConversationAnswers -answers";
 
 async function enrichFeedbackListWithGroupDonor(rows, { lite = false } = {}) {
   const plainRows = rows.map((row) => attachVoicePlaybackUrl(row));
@@ -386,19 +388,15 @@ async function materializeMissingSplitChildrenForParent(parentRow) {
     existingChildren.map((c) => String(c.ticketId || "").trim()).filter(Boolean)
   );
 
-  const visitDepartment = sanitizeOptionalLabel(
-    parentRow.lookupDepartment || parentRow.department
-  );
+  const feedbackDepartment = sanitizeOptionalLabel(parentRow.department);
   let created = 0;
 
   const base = {
-    patientName: parentRow.patientName,
-    patientRegNo: parentRow.patientRegNo,
-    patientEncounterType: parentRow.patientEncounterType,
-    ward: parentRow.ward,
-    ipNo: parentRow.ipNo,
-    visitOrAdmissionDate: parentRow.visitOrAdmissionDate,
-    lookupDepartment: parentRow.lookupDepartment,
+    employeeName: parentRow.employeeName,
+    employeeId: parentRow.employeeId,
+    feedbackType: parentRow.feedbackType,
+    dateOfJoining: parentRow.dateOfJoining,
+    lastWorkingDay: parentRow.lastWorkingDay,
     rating: parentRow.rating,
     source: parentRow.source,
     submissionMode: parentRow.submissionMode,
@@ -422,14 +420,14 @@ async function materializeMissingSplitChildrenForParent(parentRow) {
     if (childTicketId && childTicketIds.has(childTicketId)) continue;
 
     const childSig = buildComplaintSignature(
-      issue.department || visitDepartment,
+      issue.department || feedbackDepartment,
       issue.recommendedService,
       issue.issueSummary
     );
 
     if (!childTicketId) {
       const childEval = await evaluateTicketForFeedback(Feedback, {
-        patientName: parentRow.patientName,
+        employeeName: parentRow.employeeName,
         rating: parentRow.rating,
         complaintSignature: childSig,
       });
@@ -444,7 +442,7 @@ async function materializeMissingSplitChildrenForParent(parentRow) {
     await Feedback.create({
       ...base,
       aiSentiment: issueSentiment,
-      department: issue.department || visitDepartment,
+      department: issue.department || feedbackDepartment,
       /** `issue.recommendedService` was already catalog-validated at analysis time (normalizeIssueFromAi);
        * never fall back to parentRow.service â€” that's a *different* issue's (issue 0's) resolved value. */
       service: sanitizeOptionalLabel(issue.recommendedService),
@@ -601,6 +599,21 @@ async function repairMissingSplitVoiceRecordings() {
   }
 }
 
+
+/** Questions for the employee form. Public: the form loads before anyone signs in. */
+app.get("/api/questionnaires/:type", (req, res) => {
+  const type = String(req.params.type || "").toLowerCase();
+  if (!FEEDBACK_TYPES.includes(type)) {
+    return res.status(404).json({ message: "Unknown feedback type" });
+  }
+  return res.json({
+    type,
+    questions: getQuestionnaire(type),
+    intro: { en: introText(type, "en"), ta: introText(type, "ta") },
+  });
+});
+
+registerQuestionnaireSpeechRoutes(app, { limiter: limitSpeechToText });
 
 app.get("/api/health", (_req, res) => {
   res.json({
@@ -991,7 +1004,18 @@ function normalizeServicesPayload(services) {
     }));
 }
 
-/** Hospital departments in MongoDB (staff assignment, EMR analytics labels). */
+/** Accepts YYYY-MM-DD (or a parseable date) and returns YYYY-MM-DD, or "" when invalid. */
+function normalizeIsoDate(raw) {
+  const text = String(raw || "").trim().slice(0, 40);
+  if (!text) return "";
+  const d = /^\d{4}-\d{2}-\d{2}$/.test(text) ? new Date(`${text}T00:00:00Z`) : new Date(text);
+  if (Number.isNaN(d.getTime())) return "";
+  const iso = d.toISOString().slice(0, 10);
+  const year = Number(iso.slice(0, 4));
+  return year >= 1970 && year <= 2100 ? iso : "";
+}
+
+/** Hospital departments in MongoDB (staff assignment, analytics labels). */
 async function listHospitalDepartmentsFromDb() {
   const rows = await Department.find()
     .populate("hodUserId", "username role")
@@ -1024,31 +1048,6 @@ app.get("/api/departments", requireAuth, async (_req, res) => {
 
 app.get("/api/hospital-departments", async (_req, res) => {
   try {
-    const existing = await listHospitalDepartmentsFromDb();
-    if (existing.length > 0) {
-      return res.json(existing);
-    }
-
-    if (!isEmrPatientLookupEnabled()) {
-      return res.json([]);
-    }
-
-    const emrDeptNames = await listEmrDepartments();
-    if (!emrDeptNames.length) {
-      return res.json([]);
-    }
-
-    await Department.bulkWrite(
-      emrDeptNames.map((name) => ({
-        updateOne: {
-          filter: { name },
-          update: { $setOnInsert: { name, description: "", services: [] } },
-          upsert: true,
-        },
-      })),
-      { ordered: false }
-    );
-
     return res.json(await listHospitalDepartmentsFromDb());
   } catch (error) {
     return res.status(500).json({ message: "Failed to list departments" });
@@ -1602,41 +1601,6 @@ app.post("/api/feedback/repair-split-children", requireCapability(CAPABILITIES.M
   }
 });
 
-app.post("/api/patient/lookup", limitPatientLookup, async (req, res) => {
-  if (!isEmrPatientLookupEnabled()) {
-    return res.status(503).json({
-      message: "Patient lookup is disabled on this server.",
-      disabled: true,
-    });
-  }
-  try {
-    const regNo = typeof req.body?.regNo === "string" ? req.body.regNo.trim() : "";
-    const patientName = typeof req.body?.patientName === "string" ? req.body.patientName.trim() : "";
-    const frmDate = typeof req.body?.frmDate === "string" ? req.body.frmDate.trim() : "";
-    const toDate = typeof req.body?.toDate === "string" ? req.body.toDate.trim() : "";
-    if (!regNo && !patientName) {
-      return res.status(400).json({ message: "Provide regNo (UHID) or patientName." });
-    }
-    if (regNo.length > 80 || patientName.length > 200) {
-      return res.status(400).json({ message: "Lookup input is too long." });
-    }
-    const result = await lookupPatientRecords({ regNo, patientName, frmDate, toDate });
-    return res.json(result);
-  } catch (error) {
-    if (error?.code === "VALIDATION") {
-      return res.status(400).json({ message: error.message });
-    }
-    if (error?.name === "AbortError") {
-      return res.status(504).json({ message: "Hospital records lookup timed out. Try again." });
-    }
-    // eslint-disable-next-line no-console
-    console.error("[patient lookup] failed", { message: error?.message || String(error) });
-    return res.status(502).json({
-      message: error?.message || "Could not reach hospital records for lookup.",
-    });
-  }
-});
-
 app.post("/api/feedback/infer-voice-rating", limitAiInference, async (req, res) => {
   try {
     const transcript = req.body?.transcript;
@@ -1655,7 +1619,7 @@ app.post("/api/feedback/infer-voice-rating", limitAiInference, async (req, res) 
 
 async function applyIssueTicketsAndTms({
   feedbackId,
-  patientName,
+  employeeName,
   rating,
   issueRows,
   emrDepartment,
@@ -1698,7 +1662,7 @@ async function applyIssueTicketsAndTms({
       ticketIsFresh = primaryTicketIsFresh;
     } else {
       const evalResult = await evaluateTicketForFeedback(Feedback, {
-        patientName,
+        employeeName,
         rating,
         complaintSignature: sig,
       });
@@ -1731,24 +1695,22 @@ async function applyIssueTicketsAndTms({
 async function applyPendingAiToFeedback({
   feedbackId,
   pendingAi,
-  patientName,
+  employeeName,
   comments,
-  visitDepartment,
+  feedbackDepartment,
   normalizedService,
   serviceCatalog,
   numericRating,
   ticketId: initialTicketId,
   ticketRule: initialTicketRule,
   ticketIsFresh: initialTicketIsFresh,
-  patientRegNo,
-  patientEncounterType,
-  ward,
-  ipNo,
-  visitOrAdmissionDate,
+  employeeId,
+  feedbackType,
+  dateOfJoining,
+  lastWorkingDay,
   submissionMode,
   botVoiceOverallSentiment,
   feedbackSource,
-  feedbackLookupDepartment,
   botConversationAnswers,
 }) {
   let ticketId = initialTicketId;
@@ -1770,10 +1732,10 @@ async function applyPendingAiToFeedback({
   const ai = pendingAi;
   const issueBundle = await applyIssueTicketsAndTms({
     feedbackId: String(feedbackId),
-    patientName,
+    employeeName,
     rating: numericRating,
     issueRows: ai.issues,
-    emrDepartment: visitDepartment,
+    emrDepartment: feedbackDepartment,
     fullComments: comments || "",
     existingTicketId: ticketId,
     existingTicketRule: ticketRule,
@@ -1832,13 +1794,12 @@ async function applyPendingAiToFeedback({
     aiSummary: ai.summary,
     aiAnalyzedAt: new Date(),
     service: recommendedService || normalizedService,
-    department: visitDepartment || sanitizeOptionalLabel(primaryIssue?.department),
-    lookupDepartment: patientRegNo ? visitDepartment : feedbackLookupDepartment || "",
+    department: feedbackDepartment || sanitizeOptionalLabel(primaryIssue?.department),
     suggestedAction: primaryIssue?.suggestedAction || "",
     feedbackIssues: issueBundle.issues,
     submissionGroupId: issueBundle.submissionGroupId,
     complaintSignature: buildComplaintSignature(
-      primaryIssue?.department || visitDepartment,
+      primaryIssue?.department || feedbackDepartment,
       recommendedService,
       comments || ""
     ),
@@ -1889,13 +1850,11 @@ async function applyPendingAiToFeedback({
 
   if (issueBundle.issues.length > 1) {
     const base = {
-      patientName,
-      patientRegNo,
-      patientEncounterType,
-      ward,
-      ipNo,
-      visitOrAdmissionDate,
-      lookupDepartment: patientRegNo ? visitDepartment : "",
+      employeeName,
+      employeeId,
+      feedbackType,
+      dateOfJoining,
+      lastWorkingDay,
       rating: numericRating,
       source: feedbackSource || outDoc.source,
       submissionMode,
@@ -1914,7 +1873,7 @@ async function applyPendingAiToFeedback({
       const issueSentiment =
         aiSentimentOnly(issue?.sentiment) || aiSentimentOnly(ai.sentiment);
       const childSig = buildComplaintSignature(
-        issue.department || visitDepartment,
+        issue.department || feedbackDepartment,
         issue.recommendedService,
         issue.issueSummary
       );
@@ -1925,7 +1884,7 @@ async function applyPendingAiToFeedback({
         childTicketIsFresh = false;
       } else if (!childTicketId) {
         const childEval = await evaluateTicketForFeedback(Feedback, {
-          patientName,
+          employeeName,
           rating: numericRating,
           complaintSignature: childSig,
         });
@@ -1944,7 +1903,7 @@ async function applyPendingAiToFeedback({
       const child = await Feedback.create({
         ...base,
         aiSentiment: issueSentiment,
-        department: issue.department || visitDepartment,
+        department: issue.department || feedbackDepartment,
         service: resolveServiceForIssue(issue),
         comments: String(comments || "").trim(),
         aiSummary: issue.issueSummary,
@@ -2004,13 +1963,13 @@ async function reanalyzeFeedbackById(feedbackId) {
     loadServiceCatalogForAi(),
     loadDepartmentCatalogForAi(),
   ]);
-  const visitDepartment = sanitizeOptionalLabel(row.lookupDepartment || row.department);
+  const feedbackDepartment = sanitizeOptionalLabel(row.department);
 
   await runDeferredFeedbackAiPipeline({
     feedbackId: row._id,
-    patientName: row.patientName,
+    employeeName: row.employeeName,
     comments: commentsForAi,
-    visitDepartment,
+    feedbackDepartment,
     normalizedService: sanitizeOptionalLabel(row.service) || "",
     serviceCatalog,
     departmentCatalog,
@@ -2018,15 +1977,13 @@ async function reanalyzeFeedbackById(feedbackId) {
     ticketId: row.ticketId,
     ticketRule: "none",
     ticketIsFresh: false,
-    patientRegNo: row.patientRegNo || "",
-    patientEncounterType: row.patientEncounterType || "",
-    ward: row.ward || "",
-    ipNo: row.ipNo || "",
-    visitOrAdmissionDate: row.visitOrAdmissionDate || "",
+    employeeId: row.employeeId || "",
+    feedbackType: row.feedbackType || "",
+    dateOfJoining: row.dateOfJoining || "",
+    lastWorkingDay: row.lastWorkingDay || "",
     submissionMode: row.submissionMode || "standard",
     botVoiceOverallSentiment: null,
     feedbackSource: row.source,
-    feedbackLookupDepartment: row.lookupDepartment || "",
     botConversationAnswers: row.botConversationAnswers || [],
   });
 
@@ -2041,9 +1998,9 @@ async function reanalyzeFeedbackById(feedbackId) {
 async function runDeferredFeedbackAiPipeline(ctx) {
   const {
     feedbackId,
-    patientName,
+    employeeName,
     comments,
-    visitDepartment,
+    feedbackDepartment,
     normalizedService,
     serviceCatalog,
     departmentCatalog,
@@ -2051,26 +2008,24 @@ async function runDeferredFeedbackAiPipeline(ctx) {
     ticketId,
     ticketRule,
     ticketIsFresh,
-    patientRegNo,
-    patientEncounterType,
-    ward,
-    ipNo,
-    visitOrAdmissionDate,
+    employeeId,
+    feedbackType,
+    dateOfJoining,
+    lastWorkingDay,
     submissionMode,
     botVoiceOverallSentiment,
     feedbackSource,
-    feedbackLookupDepartment,
     botConversationAnswers,
   } = ctx;
 
   let pendingAi = null;
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
-      pendingAi = await analyzePatientFeedback(
+      pendingAi = await analyzeEmployeeFeedback(
         {
-          patientName,
-          patientDepartment: visitDepartment,
-          department: visitDepartment,
+          employeeName,
+          employeeDepartment: feedbackDepartment,
+          department: feedbackDepartment,
           service: normalizedService,
           comments: comments || "",
         },
@@ -2111,24 +2066,22 @@ async function runDeferredFeedbackAiPipeline(ctx) {
     await applyPendingAiToFeedback({
       feedbackId,
       pendingAi,
-      patientName,
+      employeeName,
       comments,
-      visitDepartment,
+      feedbackDepartment,
       normalizedService,
       serviceCatalog,
       numericRating,
       ticketId,
       ticketRule,
       ticketIsFresh,
-      patientRegNo,
-      patientEncounterType,
-      ward,
-      ipNo,
-      visitOrAdmissionDate,
+      employeeId,
+      feedbackType,
+      dateOfJoining,
+      lastWorkingDay,
       submissionMode,
       botVoiceOverallSentiment,
       feedbackSource,
-      feedbackLookupDepartment,
       botConversationAnswers,
     });
   } catch (aiErr) {
@@ -2178,10 +2131,10 @@ app.post("/api/feedback", limitFeedbackSubmit, (req, res, next) => {
       }
     }
 
-    // Defense-in-depth: the Feedback schema also sanitizes patientName on save, but
+    // Defense-in-depth: the Feedback schema also sanitizes employeeName on save, but
     // sanitizing here means ticket-signature generation and the AI prompt below see
     // the clean name too, not just the DB record.
-    const patientName = sanitizePatientName(req.body.patientName);
+    const employeeName = sanitizeEmployeeName(req.body.employeeName);
     let comments = req.body.comments;
     const source = req.body.source;
     const staffRemarks = String(req.body.staffRemarks || "").trim().slice(0, 2000);
@@ -2220,20 +2173,67 @@ app.post("/api/feedback", limitFeedbackSubmit, (req, res, next) => {
         comments = buildBotCommentsFromAnswers(botConversationAnswers);
       }
     }
+    const feedbackType = normalizeFeedbackType(req.body.feedbackType);
+    const employeeId = String(req.body.employeeId || "").trim().slice(0, 40);
+    const dateOfJoining = normalizeIsoDate(req.body.dateOfJoining);
+    const lastWorkingDay =
+      feedbackType === "relieving" ? normalizeIsoDate(req.body.lastWorkingDay) : "";
+
+    if (!employeeName) {
+      return res.status(400).json({ message: "employeeName is required" });
+    }
+    if (!employeeId) {
+      return res.status(400).json({ message: "employeeId is required" });
+    }
+    if (!sanitizeOptionalLabel(req.body.department)) {
+      return res.status(400).json({ message: "department is required" });
+    }
+    if (feedbackType !== "general" && !dateOfJoining) {
+      return res.status(400).json({ message: "dateOfJoining is required" });
+    }
+    if (feedbackType === "relieving" && !lastWorkingDay) {
+      return res.status(400).json({ message: "lastWorkingDay is required" });
+    }
+
+    // New-joiner and relieving feedback are structured questionnaires: validate the
+    // answers, then flatten them into `comments` + a derived rating so the AI,
+    // ticket and dashboard pipeline downstream is unchanged.
+    let questionnaireAnswers = [];
+    if (feedbackType !== "general") {
+      let rawAnswers = req.body.answers;
+      if (typeof rawAnswers === "string") {
+        try {
+          rawAnswers = JSON.parse(rawAnswers);
+        } catch {
+          rawAnswers = [];
+        }
+      }
+      const processed = processQuestionnaireAnswers(feedbackType, rawAnswers);
+      if (!processed.ok) {
+        return res.status(400).json({ message: processed.message });
+      }
+      questionnaireAnswers = processed.answers;
+      comments = [processed.comments, comments ? `Additional comments: ${comments}` : ""]
+        .filter(Boolean)
+        .join("\n\n");
+      rating = processed.rating;
+      // Answers are free text, so there is no Yes/No to score: let the AI read them for the overall
+      // rating. A Red blocker always stays at 1 so it raises a ticket immediately.
+      if (!processed.blockers && process.env.OPENROUTER_API_KEY && processed.comments) {
+        try {
+          const overall = await inferRatingFromVoiceTranscript(
+            combineFeedbackTextForAi(processed.comments, "")
+          );
+          if (overall?.rating >= 1 && overall?.rating <= 5) rating = overall.rating;
+        } catch {
+          // Keep the neutral default when the AI is unavailable.
+        }
+      }
+    }
+
     const commentsForAi = combineFeedbackTextForAi(comments, staffRemarks);
     const deferAiProcessing =
       submissionMode === "voice" || submissionMode === "standard" || submissionMode === "bot";
-    const rawEncounter = String(req.body.patientEncounterType || "").toLowerCase().trim();
-    // Outpatients only â€” the dental hospital has no inpatient visits.
-    const patientEncounterType = rawEncounter === "op" ? "op" : "";
-    const patientRegNo = String(req.body.patientRegNo || "").trim().slice(0, 80);
-    const ward = String(req.body.ward || "").trim().slice(0, 120);
-    const ipNo = String(req.body.ipNo || "").trim().slice(0, 80);
-    const visitOrAdmissionDate = String(req.body.visitOrAdmissionDate || "").trim().slice(0, 80);
-
-    if (!patientName) {
-      return res.status(400).json({ message: "patientName is required" });
-    }
 
     const [serviceCatalog, departmentCatalog] = await Promise.all([
       loadServiceCatalogForAi(),
@@ -2241,10 +2241,8 @@ app.post("/api/feedback", limitFeedbackSubmit, (req, res, next) => {
     ]);
     let numericRating = Number(rating);
 
-    /** Visit department: UHID/EMR first; name-only flow uses saved hospital department from form */
-    const visitDepartment = patientRegNo
-      ? sanitizeOptionalLabel(req.body.lookupDepartment || req.body.department)
-      : sanitizeOptionalLabel(req.body.department);
+    /** Department the employee works in, picked on the form. */
+    const feedbackDepartment = sanitizeOptionalLabel(req.body.department);
     /** Optional service hint; AI picks recommended service from routing catalog */
     const serviceHint = sanitizeOptionalLabel(req.body.service);
 
@@ -2310,11 +2308,11 @@ app.post("/api/feedback", limitFeedbackSubmit, (req, res, next) => {
       commentsForAi
     ) {
       try {
-        pendingAi = await analyzePatientFeedback(
+        pendingAi = await analyzeEmployeeFeedback(
           {
-            patientName,
-            patientDepartment: visitDepartment,
-            department: visitDepartment,
+            employeeName,
+            employeeDepartment: feedbackDepartment,
+            department: feedbackDepartment,
             service: normalizedService,
             comments: commentsForAi,
           },
@@ -2347,13 +2345,13 @@ app.post("/api/feedback", limitFeedbackSubmit, (req, res, next) => {
     }
 
     const complaintSignature = buildComplaintSignature(
-      visitDepartment,
+      feedbackDepartment,
       normalizedService,
       commentsForAi
     );
 
     const initialTicket = await evaluateTicketForFeedback(Feedback, {
-      patientName,
+      employeeName,
       rating: numericRating,
       complaintSignature,
     });
@@ -2362,19 +2360,18 @@ app.post("/api/feedback", limitFeedbackSubmit, (req, res, next) => {
     let ticketIsFresh = initialTicket.ticketIsFresh;
 
     const feedback = await Feedback.create({
-      patientName,
-      patientRegNo,
-      patientEncounterType,
-      ward,
-      ipNo,
-      visitOrAdmissionDate,
-      department: visitDepartment,
-      lookupDepartment: patientRegNo ? visitDepartment : "",
+      employeeName,
+      employeeId,
+      feedbackType,
+      dateOfJoining,
+      lastWorkingDay,
+      answers: questionnaireAnswers,
+      department: feedbackDepartment,
       service: normalizedService,
       rating: numericRating,
       comments: comments || "",
       staffRemarks,
-      source: ["patient", "staff", "ai"].includes(source) ? source : "patient",
+      source: ["employee", "staff", "ai"].includes(source) ? source : "employee",
       complaintSignature,
       ticketId,
       submissionMode,
@@ -2393,7 +2390,7 @@ app.post("/api/feedback", limitFeedbackSubmit, (req, res, next) => {
       ticketId: ticketId || null,
       complaintTicketRaised: Boolean(ticketId),
       ticketRule,
-      visitDepartment: visitDepartment || "(none)",
+      feedbackDepartment: feedbackDepartment || "(none)",
       serviceHeuristic: svcHeuristic.method,
       serviceResolvedByAiHint: serviceHintFromAi,
     });
@@ -2405,11 +2402,11 @@ app.post("/api/feedback", limitFeedbackSubmit, (req, res, next) => {
       commentsForAi
     ) {
       try {
-        pendingAi = await analyzePatientFeedback(
+        pendingAi = await analyzeEmployeeFeedback(
           {
-            patientName,
-            patientDepartment: visitDepartment,
-            department: visitDepartment,
+            employeeName,
+            employeeDepartment: feedbackDepartment,
+            department: feedbackDepartment,
             service: normalizedService,
             comments: commentsForAi,
           },
@@ -2440,24 +2437,22 @@ app.post("/api/feedback", limitFeedbackSubmit, (req, res, next) => {
         const aiResult = await applyPendingAiToFeedback({
           feedbackId: feedback._id,
           pendingAi,
-          patientName,
+          employeeName,
           comments: commentsForAi,
-          visitDepartment,
+          feedbackDepartment,
           normalizedService,
           serviceCatalog,
           numericRating,
           ticketId,
           ticketRule,
           ticketIsFresh,
-          patientRegNo,
-          patientEncounterType,
-          ward,
-          ipNo,
-          visitOrAdmissionDate,
+          employeeId,
+          feedbackType,
+          dateOfJoining,
+          lastWorkingDay,
           submissionMode,
           botVoiceOverallSentiment,
           feedbackSource: outDoc.source,
-          feedbackLookupDepartment: feedback.lookupDepartment || "",
           botConversationAnswers: outDoc.botConversationAnswers,
         });
         if (aiResult.outDoc) outDoc = aiResult.outDoc;
@@ -2554,9 +2549,9 @@ app.post("/api/feedback", limitFeedbackSubmit, (req, res, next) => {
       setImmediate(() => {
         runDeferredFeedbackAiPipeline({
           feedbackId: feedback._id,
-          patientName,
+          employeeName,
           comments: commentsForAi,
-          visitDepartment,
+          feedbackDepartment,
           normalizedService,
           serviceCatalog,
           departmentCatalog,
@@ -2564,15 +2559,13 @@ app.post("/api/feedback", limitFeedbackSubmit, (req, res, next) => {
           ticketId,
           ticketRule,
           ticketIsFresh,
-          patientRegNo,
-          patientEncounterType,
-          ward,
-          ipNo,
-          visitOrAdmissionDate,
+          employeeId,
+          feedbackType,
+          dateOfJoining,
+          lastWorkingDay,
           submissionMode,
           botVoiceOverallSentiment,
           feedbackSource: outDoc.source,
-          feedbackLookupDepartment: feedback.lookupDepartment || "",
           botConversationAnswers: outDoc.botConversationAnswers,
         }).catch((deferErr) => {
           // eslint-disable-next-line no-console
@@ -2607,7 +2600,7 @@ app.post("/api/feedback", limitFeedbackSubmit, (req, res, next) => {
     // above and race to insert. The loser hits this unique-index violation
     // even though the feedback was actually saved by the winner â€” replay
     // that saved record instead of reporting a failure the client (and the
-    // patient watching "Failed to create feedback") would otherwise retry
+    // employee watching "Failed to create feedback") would otherwise retry
     // forever without ever seeing it succeed.
     const raceClientSubmissionId = String(req.body.clientSubmissionId || "").trim().slice(0, 128);
     if (error?.code === 11000 && error?.keyPattern?.clientSubmissionId && raceClientSubmissionId) {
@@ -2756,7 +2749,7 @@ app.get("/api/feedback/:id", requireAuth, async (req, res) => {
 
 /**
  * Only the fields the analytics reducers below actually read. The heavy parts of
- * a feedback document (bot Q&A transcripts, patient identifiers, TMS sync fields)
+ * a feedback document (bot Q&A transcripts, employee identifiers, TMS sync fields)
  * are never touched here, so loading them was pure overhead.
  */
 const ANALYTICS_PROJECTION = [
@@ -2767,7 +2760,6 @@ const ANALYTICS_PROJECTION = [
   "rating",
   "status",
   "source",
-  "lookupDepartment",
   "department",
   "service",
   "feedbackIssues",
@@ -2880,13 +2872,11 @@ function shapeSummaryReportRow(row) {
 async function loadSummaryReportResponse(periodType, periodKey) {
   const range = periodRangeForKey(periodType, periodKey);
   const rows = await SummaryReport.find({ periodType, periodKey }).lean();
-  const departments = rows
-    .filter((r) => r.groupType === "department")
-    .sort((a, b) => b.feedbackCount - a.feedbackCount)
-    .map(shapeSummaryReportRow);
-  const services = rows
-    .filter((r) => r.groupType === "service")
-    .sort((a, b) => b.feedbackCount - a.feedbackCount)
+  // Fixed order (new joiner, relieving, general) so the page reads the same every week.
+  const order = Object.values(FEEDBACK_TYPE_LABELS);
+  const types = rows
+    .filter((r) => r.groupType === "feedbackType")
+    .sort((a, b) => order.indexOf(a.groupName) - order.indexOf(b.groupName))
     .map(shapeSummaryReportRow);
 
   return {
@@ -2894,8 +2884,7 @@ async function loadSummaryReportResponse(periodType, periodKey) {
     periodKey,
     periodStart: range?.start ?? null,
     periodEnd: range?.end ?? null,
-    departments,
-    services,
+    types,
   };
 }
 
@@ -3110,10 +3099,9 @@ function labelKey(value) {
  */
 async function hodOwnershipForTicket(feedbackId, hodUserId) {
   const ticket = await Feedback.findById(feedbackId)
-    .select("department lookupDepartment service feedbackIssues")
+    .select("department service feedbackIssues")
     .lean();
   const ticketLabels = [
-    ticket?.lookupDepartment,
     ticket?.department,
     ticket?.service,
     ticket?.feedbackIssues?.[0]?.department,
@@ -3237,7 +3225,7 @@ app.delete("/api/feedback/:id", requireCapability(CAPABILITIES.FEEDBACK_DELETE),
       splitIssuesDeleted = result.deletedCount || 0;
     }
     // Recordings belong to the whole submission (split issues share the parent's file), so they
-    // are removed only when the submission itself is deleted â€” a deleted patient's voice must not
+    // are removed only when the submission itself is deleted â€” a deleted employee's voice must not
     // stay on disk.
     if (!deleted.isSplitChild) {
       await removeFeedbackRecordings(deleted);
@@ -3395,10 +3383,6 @@ async function startServer() {
     const server = app.listen(PORT, () => {
       // eslint-disable-next-line no-console
       console.log(`API running on http://localhost:${PORT}`);
-      if (!isEmrPatientLookupEnabled()) {
-        // eslint-disable-next-line no-console
-        console.log("[emr] patient lookup disabled (EMR_QUERY_BUILDER_URL not set) â€” name-only feedback");
-      }
     });
     server.timeout = 0;
     server.requestTimeout = 0;

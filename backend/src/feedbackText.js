@@ -1,10 +1,10 @@
 /**
- * Patient comments and remarks are stored separately; AI uses the combined text.
+ * Employee comments and remarks are stored separately; AI uses the combined text.
  */
-export function combineFeedbackTextForAi(patientComments, staffRemarks) {
-  const patient = String(patientComments || "").trim();
+export function combineFeedbackTextForAi(employeeComments, staffRemarks) {
+  const employee = String(employeeComments || "").trim();
   const remark = String(staffRemarks || "").trim();
-  if (!remark) return patient;
-  if (!patient) return `[Remark] ${remark}`;
-  return `${patient}\n\n[Remark] ${remark}`;
+  if (!remark) return employee;
+  if (!employee) return `[Remark] ${remark}`;
+  return `${employee}\n\n[Remark] ${remark}`;
 }

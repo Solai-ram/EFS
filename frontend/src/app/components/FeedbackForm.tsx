@@ -8,7 +8,7 @@ import {
   syncAfterEnqueue,
 } from "../lib/feedbackOutbox";
 import { getSession, isInternalUser } from "../lib/auth";
-import { usePatientIdentity } from "../lib/usePatientIdentity";
+import { useEmployeeIdentity } from "../lib/useEmployeeIdentity";
 import {
   getBrandingSettings,
   loadBrandingSettings,
@@ -16,9 +16,20 @@ import {
 } from "../lib/branding";
 import { FeedbackRemarkField } from "./StaffRemarksField";
 import { FeedbackVoiceSection } from "./FeedbackVoiceSection";
-import { PatientIdentitySection } from "./PatientIdentitySection";
-import { PatientCard, PatientFooter, PrimaryAction, StatusNote, StepHeading } from "./PatientCard";
-import { CheckCircle2 } from "lucide-react";
+import { EmployeeIdentitySection } from "./EmployeeIdentitySection";
+import { QuestionnaireFields } from "./QuestionnaireFields";
+import { QuestionnaireVoiceGuide } from "./QuestionnaireVoiceGuide";
+import { parseFeedbackType } from "../lib/feedbackTypes";
+import { QUESTIONNAIRE_TEXT, type QuestionnaireLanguage } from "../lib/questionnaireLanguage";
+import {
+  estimateRating,
+  firstMissingQuestion,
+  toPayloadAnswers,
+  useQuestionnaire,
+  type AnswerMap,
+} from "../lib/useQuestionnaire";
+import { EmployeeCard, EmployeeFooter, PrimaryAction, StatusNote, StepHeading } from "./EmployeeCard";
+import { CheckCircle2, Languages } from "lucide-react";
 import rating5 from "./image/rating/rating-5.png";
 import rating4 from "./image/rating/rating-4.png";
 import rating3 from "./image/rating/rating-3.png";
@@ -28,8 +39,8 @@ import rating1 from "./image/rating/rating-1.png";
 type InputKind = "voice" | "type";
 
 const emotions = [
-  { id: 5, image: rating5, label: "Excellent", prompt: "What did you love about your visit?" },
-  { id: 4, image: rating4, label: "Good", prompt: "What did you like?" },
+  { id: 5, image: rating5, label: "Excellent", prompt: "What do you like most about working here?" },
+  { id: 4, image: rating4, label: "Good", prompt: "What is going well?" },
   { id: 3, image: rating3, label: "Okay", prompt: "How can we improve?" },
   { id: 2, image: rating2, label: "Poor", prompt: "What went wrong?" },
   { id: 1, image: rating1, label: "Very Poor", prompt: "What went wrong?" },
@@ -40,13 +51,25 @@ export function FeedbackForm() {
   const [searchParams] = useSearchParams();
 
   const modeParam = searchParams.get("mode");
-  const inputKind: InputKind = modeParam === "voice" ? "voice" : "type";
+  const feedbackType = parseFeedbackType(searchParams.get("type"));
+  // New joiner and relieving feedback are questionnaires: always typed, never voice.
+  const isQuestionnaire = feedbackType !== "general";
+  const inputKind: InputKind = !isQuestionnaire && modeParam === "voice" ? "voice" : "type";
 
   const [voiceReady, setVoiceReady] = useState(false);
   const [voiceRecordingBlob, setVoiceRecordingBlob] = useState<Blob | null>(null);
   const [voiceRevision, setVoiceRevision] = useState(0);
   const [selectedEmotion, setSelectedEmotion] = useState<number | null>(null);
-  const identity = usePatientIdentity();
+  const identity = useEmployeeIdentity(feedbackType);
+  const { questions, loading: questionsLoading, error: questionsError } = useQuestionnaire(feedbackType);
+  const [answers, setAnswers] = useState<AnswerMap>({});
+  // New joiner and relieving open with the AI Voice Guide; employees can switch to typing.
+  const [useGuide, setUseGuide] = useState(true);
+  // True once the guide has asked every question; until then Remark and Submit stay hidden.
+  const [guideDone, setGuideDone] = useState(false);
+  // Asked first for new joiner and relieving; the questions, voice and labels follow this choice.
+  const [lang, setLang] = useState<QuestionnaireLanguage | null>(null);
+  const [hoverLang, setHoverLang] = useState<QuestionnaireLanguage | null>(null);
 
   const [comments, setComments] = useState("");
   const [remark, setRemark] = useState("");
@@ -73,6 +96,7 @@ export function FeedbackForm() {
     setRemark("");
     setSelectedEmotion(null);
     setComments("");
+    setAnswers({});
     setVoiceReady(false);
     setVoiceRecordingBlob(null);
     setVoiceRevision((r) => r + 1);
@@ -106,7 +130,7 @@ export function FeedbackForm() {
           ...getSubmitFields(),
           rating: inferredRating,
           comments: transcript.trim(),
-          source: isStaffSession ? "staff" : "patient",
+          source: isStaffSession ? "staff" : "employee",
           submissionMode: "voice",
         },
         audioBlob
@@ -161,7 +185,17 @@ export function FeedbackForm() {
       return;
     }
 
-    if (inputKind === "type") {
+    if (isQuestionnaire) {
+      const missing = firstMissingQuestion(questions, answers);
+      if (!questions.length) {
+        setSubmitError(questionsError || "The questions are still loading. Please try again.");
+        return;
+      }
+      if (missing) {
+        setSubmitError(`Please answer: ${missing.textEn}`);
+        return;
+      }
+    } else if (inputKind === "type") {
       if (!selectedEmotion) {
         setSubmitError("Please choose how your experience felt.");
         return;
@@ -191,12 +225,17 @@ export function FeedbackForm() {
       const outboxId = outboxIdRef.current ?? newOutboxId();
       outboxIdRef.current = outboxId;
 
+      // For questionnaires the server derives the stored rating from the answers.
+      const submitRating = isQuestionnaire
+        ? estimateRating(questions, answers)
+        : (selectedEmotion as number);
       const payload = {
         ...identity.getSubmitFields(),
-        rating: selectedEmotion as number,
-        comments: comments.trim(),
+        rating: submitRating,
+        comments: isQuestionnaire ? "" : comments.trim(),
+        ...(isQuestionnaire ? { answers: toPayloadAnswers(questions, answers) } : {}),
         ...(remark.trim() ? { staffRemarks: remark.trim() } : {}),
-        source: (internalSubmit ? "staff" : "patient") as "staff" | "patient",
+        source: (internalSubmit ? "staff" : "employee") as "staff" | "employee",
         submissionMode: (inputKind === "voice" ? "voice" : "standard") as "voice" | "standard",
       };
 
@@ -205,7 +244,7 @@ export function FeedbackForm() {
         payload,
         audioBlob: inputKind === "voice" ? voiceBlobRef.current ?? voiceRecordingBlob : null,
         thankYouState: {
-          rating: selectedEmotion as number,
+          rating: submitRating,
           fromStaffSession: internalSubmit,
         },
       });
@@ -233,7 +272,7 @@ export function FeedbackForm() {
 
       navigate("/thank-you", {
         state: {
-          rating: selectedEmotion,
+          rating: submitRating,
           fromStaffSession: internalSubmit,
           staffRemarks: remark.trim() || undefined,
           aiSummary: typeof created.aiSummary === "string" ? created.aiSummary : undefined,
@@ -252,7 +291,9 @@ export function FeedbackForm() {
     }
   };
 
-  const canSubmitType = Boolean(selectedEmotion && identity.identityReady);
+  const canSubmitType = isQuestionnaire
+    ? questions.length > 0 && !firstMissingQuestion(questions, answers) && identity.identityReady
+    : Boolean(selectedEmotion && identity.identityReady);
   const canSubmitVoice = Boolean(
     voiceReady && selectedEmotion != null && identity.identityReady && !transcriptionPending
   );
@@ -262,50 +303,144 @@ export function FeedbackForm() {
     !isSubmitting &&
     (inputKind === "type" ? canSubmitType : canSubmitVoice);
 
-  const showRemark =
-    inputKind === "voice" ? voiceReady : Boolean(selectedEmotion);
+  const guideActive = isQuestionnaire && useGuide && !guideDone;
+  const showRemark = isQuestionnaire
+    ? questions.length > 0 && !guideActive
+    : inputKind === "voice"
+      ? voiceReady
+      : Boolean(selectedEmotion);
 
   const linkClass = "inline text-left font-semibold underline decoration-1 underline-offset-2 hover:decoration-2";
 
+  if (isQuestionnaire && !lang) {
+    return (
+      <div className="max-w-3xl mx-auto">
+        <EmployeeCard
+          kicker="AI voice guide"
+          title={feedbackType === "new_joiner" ? "New joiner stay interview" : "Exit interview"}
+          subtitle="Questions in English or Tamil · பதில் குரலில்"
+        >
+          <div className="space-y-8 py-4 text-center md:py-8">
+            <div
+              className="inline-flex items-center gap-2 rounded-full px-5 py-3 text-white"
+              style={{ backgroundColor: primaryColor }}
+            >
+              <Languages size={20} />
+              <span>Choose your language · மொழியைத் தேர்ந்தெடுக்கவும்</span>
+            </div>
+
+            <div className="flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
+              {(
+                [
+                  { id: "en", label: "English", sub: "Continue in English" },
+                  { id: "ta", label: "தமிழ்", sub: "தமிழில் தொடரவும்" },
+                ] as const
+              ).map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => setLang(option.id)}
+                  className="flex min-w-[14rem] flex-col items-center rounded-full border-2 px-10 py-4 transition-all hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 active:translate-y-0"
+                  style={{
+                    borderColor: primaryColor,
+                    backgroundColor: hoverLang === option.id ? primaryColor : "#FFFFFF",
+                    color: hoverLang === option.id ? "#FFFFFF" : primaryColor,
+                  }}
+                  onMouseEnter={() => setHoverLang(option.id)}
+                  onMouseLeave={() => setHoverLang(null)}
+                  onFocus={() => setHoverLang(option.id)}
+                  onBlur={() => setHoverLang(null)}
+                >
+                  <span className="text-xl font-bold leading-tight" lang={option.id}>
+                    {option.label}
+                  </span>
+                  <span className="mt-0.5 text-sm opacity-80" lang={option.id}>
+                    {option.sub}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            <p className="mx-auto max-w-md text-sm leading-relaxed text-gray-500">
+              The questions, the AI voice guide and your spoken answers will use this language. You can change it
+              later.
+            </p>
+          </div>
+        </EmployeeCard>
+        <EmployeeFooter onBack={() => navigate("/feedback")} />
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-3xl mx-auto">
-      <PatientCard
-        kicker={inputKind === "voice" ? "Voice feedback" : "Rate & share"}
-        title="How was your experience today?"
+      <EmployeeCard
+        kicker={
+          feedbackType === "new_joiner"
+            ? "New joiner · 15-day stay interview"
+            : feedbackType === "relieving"
+              ? "Relieving · Exit interview"
+              : inputKind === "voice"
+                ? "Voice feedback"
+                : "Rate & share"
+        }
+        title={
+          feedbackType === "new_joiner"
+            ? "How is your first month going?"
+            : feedbackType === "relieving"
+              ? "Before you go, tell us about your time here"
+              : "How is your experience working here?"
+        }
         subtitle={
-          inputKind === "voice"
-            ? "Tell us about your visit in your own words — Tamil, Hindi or English."
-            : "Your feedback reaches the team responsible for your care."
+          feedbackType === "new_joiner"
+            ? "A quick check-in so we can fix problems early. Your answers go to HR."
+            : feedbackType === "relieving"
+              ? "Your honest views help us improve employment practices. Thank you for your contribution."
+              : inputKind === "voice"
+                ? "Tell us about your experience in your own words — Tamil, Hindi or English."
+                : "Your feedback reaches the team that can act on it."
         }
       >
         <section className="mb-8">
           <StepHeading step={1} title="Your details" primaryColor={primaryColor} />
-          <PatientIdentitySection identity={identity} primaryColor={primaryColor} />
+          <EmployeeIdentitySection identity={identity} primaryColor={primaryColor} />
           <StatusNote
             primaryColor={primaryColor}
             ready={inputKind === "voice" && identity.identityReady}
           >
-            {inputKind === "voice" ? (
-              identity.identificationMode === "name" ? (
-                identity.identityReady ? (
-                  <>Ready to listen, {identity.resolvedPatientName}. Tap below to share your experience.</>
-                ) : !identity.nameReady ? (
-                  "Please enter your name and select your department before speaking."
-                ) : (
-                  "Please select your department before speaking."
-                )
-              ) : identity.identityReady ? (
-                "Visit confirmed from EMR. Tap below to share your experience."
+            {isQuestionnaire ? (
+              <>
+                HR staff can fill this form on behalf of an employee who needs help.{" "}
+                <button
+                  type="button"
+                  onClick={() => setLang(null)}
+                  className={linkClass}
+                  style={{ color: primaryColor }}
+                >
+                  Change language · மொழியை மாற்று
+                </button>
+                . Prefer a different kind of feedback?{" "}
+                <button
+                  type="button"
+                  onClick={() => navigate("/feedback")}
+                  className={linkClass}
+                  style={{ color: primaryColor }}
+                >
+                  Go back
+                </button>
+              </>
+            ) : inputKind === "voice" ? (
+              identity.identityReady ? (
+                <>Ready to listen, {identity.resolvedEmployeeName}. Tap below to share your experience.</>
               ) : (
-                "Look up your registration number and confirm your visit from EMR before speaking."
+                "Please fill in your name, employee ID and department before speaking."
               )
             ) : (
               <>
-                If the patient is elder or unable to read/write, staff can fill this form on their behalf. Prefer
-                to speak?{" "}
+                HR staff can fill this form on behalf of an employee who needs help. Prefer to speak?{" "}
                 <button
                   type="button"
-                  onClick={() => navigate("/feedback/give?mode=voice", { replace: true })}
+                  onClick={() => navigate("/feedback/give?mode=voice&type=general", { replace: true })}
                   className={linkClass}
                   style={{ color: primaryColor }}
                 >
@@ -324,6 +459,65 @@ export function FeedbackForm() {
             )}
           </StatusNote>
         </section>
+
+        {isQuestionnaire && (
+          <section className="mb-8">
+            <StepHeading
+              step={2}
+              title={feedbackType === "new_joiner" ? "Your first weeks" : "Your exit interview"}
+              hint={
+                lang === "ta"
+                  ? useGuide
+                    ? "AI குரல் வழிகாட்டி ஒவ்வொரு கேள்வியையும் கேட்கும். பேசி அல்லது தொட்டு பதில் சொல்லுங்கள்."
+                    : "* குறியிட்ட கேள்விகளுக்கு பதில் அவசியம்."
+                  : useGuide
+                    ? "The AI Voice Guide asks each question aloud. Speak or tap your answer."
+                    : "Fields marked * are required."
+              }
+              primaryColor={primaryColor}
+            />
+            {questionsLoading && !questions.length ? (
+              <p className="text-sm text-gray-500">Loading questions…</p>
+            ) : questionsError && !questions.length ? (
+              <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-medium text-red-700">
+                {questionsError}. Check your connection and reload this page.
+              </p>
+            ) : useGuide ? (
+              <QuestionnaireVoiceGuide
+                feedbackType={feedbackType as "new_joiner" | "relieving"}
+                questions={questions}
+                answers={answers}
+                onChange={setAnswers}
+                primaryColor={primaryColor}
+                lang={lang ?? "en"}
+                onSwitchToTyping={() => setUseGuide(false)}
+                onFinishedChange={setGuideDone}
+                canStart={identity.validateForSubmit() === null}
+              />
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setGuideDone(false);
+                    setUseGuide(true);
+                  }}
+                  className="mb-4 text-sm font-medium underline"
+                  style={{ color: primaryColor }}
+                >
+                  {QUESTIONNAIRE_TEXT[lang ?? "en"].useGuide}
+                </button>
+                <QuestionnaireFields
+                  questions={questions}
+                  answers={answers}
+                  onChange={setAnswers}
+                  primaryColor={primaryColor}
+                  lang={lang ?? "en"}
+                />
+              </>
+            )}
+          </section>
+        )}
 
         {inputKind === "voice" && (
           <section className="mb-6">
@@ -346,16 +540,16 @@ export function FeedbackForm() {
           </section>
         )}
 
-        {inputKind === "type" && (
+        {inputKind === "type" && !isQuestionnaire && (
           <section className="mb-8">
             <StepHeading
               step={2}
-              title="Rate your visit"
+              title="Rate your experience"
               hint={
                 <>
                   Choose how you felt, then{" "}
                   <span className="font-medium text-gray-700">
-                    describe your visit in comments so your rating matches your words.
+                    describe your experience in comments so your rating matches your words.
                   </span>
                 </>
               }
@@ -444,6 +638,7 @@ export function FeedbackForm() {
           </div>
         ) : null}
 
+        {guideActive ? null : (
         <PrimaryAction
           primaryColor={primaryColor}
           onClick={() => void handleSubmit()}
@@ -458,14 +653,18 @@ export function FeedbackForm() {
             "Submit feedback"
           )}
         </PrimaryAction>
+        )}
         {submitError && (
           <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-center text-sm font-medium text-red-700">
             {submitError}
           </p>
         )}
-      </PatientCard>
+      </EmployeeCard>
 
-      <PatientFooter showTiming onBack={() => navigate("/feedback")} />
+      <EmployeeFooter
+        timing={isQuestionnaire ? "Takes about 5 minutes" : "Takes less than a minute"}
+        onBack={() => navigate("/feedback")}
+      />
     </div>
   );
 }

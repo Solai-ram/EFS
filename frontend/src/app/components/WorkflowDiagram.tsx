@@ -205,7 +205,7 @@ export function WorkflowDiagram() {
                 <div>
                   <h4 className="font-bold text-gray-800 mb-2 text-lg">Sentiment Analysis</h4>
                   <p className="text-sm text-gray-600 leading-relaxed">
-                    Automatically detects emotion and urgency level from patient feedback using natural language processing
+                    Automatically detects emotion and urgency level from employee feedback using natural language processing
                   </p>
                 </div>
               </div>
@@ -216,7 +216,7 @@ export function WorkflowDiagram() {
                 <div>
                   <h4 className="font-bold text-gray-800 mb-2 text-lg">Keyword Extraction</h4>
                   <p className="text-sm text-gray-600 leading-relaxed">
-                    Identifies key issues, topics, and complaint categories mentioned in patient feedback text
+                    Identifies key issues, topics, and complaint categories mentioned in employee feedback text
                   </p>
                 </div>
               </div>

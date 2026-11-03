@@ -1,7 +1,7 @@
 /**
  * Masks personal details in text before it is sent to the AI provider (OpenRouter).
  *
- * The AI only needs what the patient said about their visit to classify it, so identifiers are
+ * The AI only needs what the employee said about their work to classify it, so identifiers are
  * replaced with placeholders. Only the outgoing copy is masked; stored feedback is unchanged.
  * Names are matched in the script they were entered in, so a Latin-script name won't be found
  * in a Tamil-script transcript; phone numbers and email addresses are caught in any text.
@@ -19,7 +19,7 @@ function escapeRegExp(text) {
 
 /**
  * @param {string | null | undefined} text
- * @param {{ names?: Array<string | null | undefined> }} [options] the patient's own name(s)
+ * @param {{ names?: Array<string | null | undefined> }} [options] the employee's own name(s)
  */
 export function redactPersonalDetails(text, { names = [] } = {}) {
   let out = String(text || "");

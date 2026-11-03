@@ -30,7 +30,7 @@ function feedbackItemForIssue(
   };
 }
 
-function splitRowsFromGroup(group: PatientFeedbackGroup): FeedbackItem[] {
+function splitRowsFromGroup(group: EmployeeFeedbackGroup): FeedbackItem[] {
   const splitChildren = group.items
     .filter((i) => i.isSplitChild)
     .sort((a, b) => a._id.localeCompare(b._id));
@@ -54,10 +54,10 @@ function splitRowsFromGroup(group: PatientFeedbackGroup): FeedbackItem[] {
   return [rep];
 }
 
-export type PatientFeedbackGroup = {
+export type EmployeeFeedbackGroup = {
   groupKey: string;
-  patientName: string;
-  patientRegNo: string;
+  employeeName: string;
+  employeeId: string;
   representative: FeedbackItem;
   items: FeedbackItem[];
   ticketCount: number;
@@ -75,8 +75,8 @@ function groupKeyFor(item: FeedbackItem): string {
     return `sg:${item.submissionGroupId}`;
   }
   const day = new Date(item.createdAt).toISOString().slice(0, 10);
-  const name = item.patientName.trim().toLowerCase();
-  const reg = (item.patientRegNo || "").trim().toLowerCase();
+  const name = item.employeeName.trim().toLowerCase();
+  const reg = (item.employeeId || "").trim().toLowerCase();
   return `p:${name}|${reg}|${day}`;
 }
 
@@ -93,7 +93,7 @@ function uniqueStrings(values: string[]): string[] {
   return [...new Set(values.map((v) => v.trim()).filter(Boolean))].sort();
 }
 
-export function buildPatientFeedbackGroups(items: FeedbackItem[]): PatientFeedbackGroup[] {
+export function buildEmployeeFeedbackGroups(items: FeedbackItem[]): EmployeeFeedbackGroup[] {
   const map = new Map<string, FeedbackItem[]>();
   for (const item of items) {
     const key = groupKeyFor(item);
@@ -102,7 +102,7 @@ export function buildPatientFeedbackGroups(items: FeedbackItem[]): PatientFeedba
     map.set(key, list);
   }
 
-  const groups: PatientFeedbackGroup[] = [];
+  const groups: EmployeeFeedbackGroup[] = [];
   for (const [groupKey, list] of map) {
     const sorted = [...list].sort((a, b) => b._id.localeCompare(a._id));
     const representative = pickRepresentative(sorted);
@@ -120,8 +120,8 @@ export function buildPatientFeedbackGroups(items: FeedbackItem[]): PatientFeedba
 
     groups.push({
       groupKey,
-      patientName: representative.patientName,
-      patientRegNo: representative.patientRegNo?.trim() || "",
+      employeeName: representative.employeeName,
+      employeeId: representative.employeeId?.trim() || "",
       representative,
       items: sorted,
       ticketCount: sorted.filter((i) => Boolean(i.ticketId)).length,
@@ -142,7 +142,7 @@ function ticketRowSortKey(item: FeedbackItem): string {
 }
 
 /** One group per complaint ticket — split issues appear as separate rows. */
-export function buildFlatTicketGroups(items: FeedbackItem[]): PatientFeedbackGroup[] {
+export function buildFlatTicketGroups(items: FeedbackItem[]): EmployeeFeedbackGroup[] {
   const withTicket = items.filter((item) => Boolean(String(item.ticketId || "").trim()));
   const bySubmission = new Map<string, FeedbackItem[]>();
 
@@ -180,8 +180,8 @@ export function buildFlatTicketGroups(items: FeedbackItem[]): PatientFeedbackGro
     .sort((a, b) => ticketRowSortKey(b).localeCompare(ticketRowSortKey(a)))
     .map((item) => ({
       groupKey: `ticket:${item._id}:${item.ticketId || ""}`,
-      patientName: item.patientName,
-      patientRegNo: item.patientRegNo?.trim() || "",
+      employeeName: item.employeeName,
+      employeeId: item.employeeId?.trim() || "",
       representative: item,
       items: [item],
       ticketCount: 1,
@@ -194,31 +194,31 @@ export function buildFlatTicketGroups(items: FeedbackItem[]): PatientFeedbackGro
     }));
 }
 
-/** Unique patients (grouped by visit/session — split tickets count as one submission). */
-export function countPatientFeedbackGroups(items: FeedbackItem[]): number {
-  return buildPatientFeedbackGroups(items).length;
+/** Unique employees (grouped by visit/session — split tickets count as one submission). */
+export function countEmployeeFeedbackGroups(items: FeedbackItem[]): number {
+  return buildEmployeeFeedbackGroups(items).length;
 }
 
-export function groupHasSplitIssues(group: PatientFeedbackGroup): boolean {
+export function groupHasSplitIssues(group: EmployeeFeedbackGroup): boolean {
   return overviewSplitIssueRows(group).length > 1;
 }
 
 /** All AI issues for one submission — used for grouped split rows in overview. */
-export function overviewSplitIssueRows(group: PatientFeedbackGroup): FeedbackItem[] {
+export function overviewSplitIssueRows(group: EmployeeFeedbackGroup): FeedbackItem[] {
   return splitRowsFromGroup(group);
 }
 
 /** @deprecated Overview uses grouped split rows, not flat duplicates. */
 export function expandOverviewGroupsForDisplay(
-  groups: PatientFeedbackGroup[]
-): PatientFeedbackGroup[] {
+  groups: EmployeeFeedbackGroup[]
+): EmployeeFeedbackGroup[] {
   return groups;
 }
 
-/** Keep whole patient group when any row matches the predicate (e.g. filters). */
-export function filterPatientGroups(
-  groups: PatientFeedbackGroup[],
+/** Keep whole employee group when any row matches the predicate (e.g. filters). */
+export function filterEmployeeGroups(
+  groups: EmployeeFeedbackGroup[],
   matches: (item: FeedbackItem) => boolean
-): PatientFeedbackGroup[] {
+): EmployeeFeedbackGroup[] {
   return groups.filter((g) => g.items.some(matches));
 }

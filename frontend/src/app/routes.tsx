@@ -4,15 +4,13 @@ import { LoginPage } from "./components/LoginPage";
 import {
   AdminGuard,
   RequireCapability,
-  RequireDepartments,
-  RequireServices,
   RequireTicketing,
   StaffGuard,
 } from "./components/RouteGuards";
 
 /**
  * Only the shell, the guards and the landing route are bundled eagerly. Every
- * screen below is fetched on first navigation, so a patient opening the kiosk no
+ * screen below is fetched on first navigation, so a employee opening the kiosk no
  * longer downloads the admin console, the Recharts dashboards or the xlsx
  * exporter before anything renders.
  */
@@ -47,6 +45,12 @@ export const router = createBrowserRouter([
         path: "feedback",
         lazy: async () => ({
           Component: (await import("./components/FeedbackMode")).FeedbackMode,
+        }),
+      },
+      {
+        path: "feedback/general",
+        lazy: async () => ({
+          Component: (await import("./components/GeneralFeedbackMode")).GeneralFeedbackMode,
         }),
       },
       {
@@ -221,29 +225,6 @@ export const router = createBrowserRouter([
             lazy: async () => ({
               Component: (await import("./components/insights/SummaryReportRoute")).SummaryReportRoute,
             }),
-          },
-          {
-            Component: RequireDepartments,
-            children: [
-              {
-                path: "admin/departments",
-                lazy: async () => ({
-                  Component: (await import("./components/AdminHospitalDepartmentsPage"))
-                    .AdminHospitalDepartmentsPage,
-                }),
-              },
-            ],
-          },
-          {
-            Component: RequireServices,
-            children: [
-              {
-                path: "admin/services",
-                lazy: async () => ({
-                  Component: (await import("./components/AdminServicesPage")).AdminServicesPage,
-                }),
-              },
-            ],
           },
           {
             path: "admin/users",

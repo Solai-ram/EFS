@@ -70,7 +70,7 @@ export function titleForTicketSelection(
 }
 
 function ticketDepartment(item: FeedbackItem): string {
-  return sanitizeOptionalLabel(item.department || item.lookupDepartment);
+  return sanitizeOptionalLabel(item.department);
 }
 
 function ticketService(item: FeedbackItem): string {

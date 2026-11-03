@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import type { FeedbackItem } from "../lib/api";
-import type { PatientFeedbackGroup } from "../lib/patientFeedbackGroups";
+import type { EmployeeFeedbackGroup } from "../lib/employeeFeedbackGroups";
 import {
   groupHasSplitIssues,
   overviewSplitIssueRows,
-} from "../lib/patientFeedbackGroups";
+} from "../lib/employeeFeedbackGroups";
 import type { BotConversationAnswer } from "../lib/api";
 import {
   botSessionParent,
@@ -28,8 +28,8 @@ const ratingLabel: Record<number, string> = {
   5: "Excellent",
 };
 
-type PatientGroupedFeedbackTableProps = {
-  groups: PatientFeedbackGroup[];
+type EmployeeGroupedFeedbackTableProps = {
+  groups: EmployeeFeedbackGroup[];
   variant: "overview" | "tickets";
   onViewItem: (item: FeedbackItem) => void;
   onDeleteItem?: (item: FeedbackItem, groupItems?: FeedbackItem[]) => void;
@@ -37,7 +37,7 @@ type PatientGroupedFeedbackTableProps = {
 };
 
 function overviewSentimentForGroup(
-  group: PatientFeedbackGroup,
+  group: EmployeeFeedbackGroup,
   variant: "overview" | "tickets"
 ): ReturnType<typeof getAiSentimentBucket> | "mixed" {
   if (variant === "overview" && groupHasSplitIssues(group)) {
@@ -50,11 +50,11 @@ function overviewSentimentForGroup(
   return group.dominantSentiment ?? getAiSentimentBucket(group.representative);
 }
 
-function isOverviewSplitGroup(group: PatientFeedbackGroup, variant: "overview" | "tickets"): boolean {
+function isOverviewSplitGroup(group: EmployeeFeedbackGroup, variant: "overview" | "tickets"): boolean {
   return variant === "overview" && groupHasSplitIssues(group);
 }
 
-function ticketChildrenForGroup(group: PatientFeedbackGroup, variant: "overview" | "tickets"): FeedbackItem[] {
+function ticketChildrenForGroup(group: EmployeeFeedbackGroup, variant: "overview" | "tickets"): FeedbackItem[] {
   if (variant === "overview") {
     const issues = overviewSplitIssueRows(group);
     if (issues.length > 1) return issues;
@@ -91,7 +91,7 @@ function assigneeSummary(items: FeedbackItem[]): string {
   return names.join(", ");
 }
 
-function groupRemark(group: PatientFeedbackGroup): string {
+function groupRemark(group: EmployeeFeedbackGroup): string {
   for (const item of group.items) {
     const resolution = item.resolutionNote?.trim();
     if (resolution) return resolution;
@@ -107,13 +107,13 @@ function groupRemark(group: PatientFeedbackGroup): string {
   );
 }
 
-export function PatientGroupedFeedbackTable({
+export function EmployeeGroupedFeedbackTable({
   groups,
   variant,
   onViewItem,
   onDeleteItem,
   emptyMessage = "No rows to show.",
-}: PatientGroupedFeedbackTableProps) {
+}: EmployeeGroupedFeedbackTableProps) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   // Ticket status is part of the ticketing workflow; the plain feedback list hides it when that is off.
   const { enabled: ticketingEnabled } = useTicketingEnabled();
@@ -127,7 +127,7 @@ export function PatientGroupedFeedbackTable({
     });
   };
 
-  const isGroupOpen = (group: PatientFeedbackGroup) => expanded.has(group.groupKey);
+  const isGroupOpen = (group: EmployeeFeedbackGroup) => expanded.has(group.groupKey);
 
   if (!groups.length) {
     return <p className="p-6 text-gray-600">{emptyMessage}</p>;
@@ -164,7 +164,7 @@ export function PatientGroupedFeedbackTable({
             <th className="w-8 px-2 py-2.5" />
             {variant === "tickets" ? (
               <>
-                <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-600">Patient / ticket</th>
+                <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-600">Employee / ticket</th>
                 <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-600">Dept / service</th>
                 <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-600 hidden md:table-cell">
                   Sentiment
@@ -182,7 +182,7 @@ export function PatientGroupedFeedbackTable({
               </>
             ) : (
               <>
-                <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-600">Patient</th>
+                <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-600">Employee</th>
                 <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-600">Mode</th>
                 <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-600 hidden lg:table-cell">
                   Department
@@ -248,7 +248,7 @@ function GroupRows({
   onViewItem,
   onDeleteItem,
 }: {
-  group: PatientFeedbackGroup;
+  group: EmployeeFeedbackGroup;
   multi: boolean;
   isOpen: boolean;
   onToggle: () => void;
@@ -297,9 +297,9 @@ function GroupRows({
       {variant === "tickets" ? (
         <>
           <td className="px-4 py-3 font-medium text-sm text-gray-800">
-            <div>{group.patientName}</div>
-            {group.patientRegNo ? (
-              <div className="text-xs text-gray-500 font-normal mt-0.5 font-mono">UHID {group.patientRegNo}</div>
+            <div>{group.employeeName}</div>
+            {group.employeeId ? (
+              <div className="text-xs text-gray-500 font-normal mt-0.5 font-mono">ID {group.employeeId}</div>
             ) : null}
             {rep.ticketId ? (
               <div className="text-xs font-mono text-gray-700 mt-0.5">{rep.ticketId}</div>
@@ -348,9 +348,9 @@ function GroupRows({
       ) : (
         <>
           <td className="px-4 py-3 font-medium text-sm text-gray-800">
-            <div>{group.patientName}</div>
-            {group.patientRegNo ? (
-              <div className="text-xs text-gray-500 font-normal mt-0.5 font-mono">UHID {group.patientRegNo}</div>
+            <div>{group.employeeName}</div>
+            {group.employeeId ? (
+              <div className="text-xs text-gray-500 font-normal mt-0.5 font-mono">ID {group.employeeId}</div>
             ) : null}
             {rep.ticketId && splitIssueCount <= 1 ? (
               <div className="text-xs font-mono text-gray-500 mt-0.5">{rep.ticketId}</div>
@@ -494,7 +494,7 @@ function MobileGroupCard({
   onViewItem,
   onDeleteItem,
 }: {
-  group: PatientFeedbackGroup;
+  group: EmployeeFeedbackGroup;
   multi: boolean;
   isOpen: boolean;
   onToggle: () => void;
@@ -526,9 +526,9 @@ function MobileGroupCard({
     <div className="rounded-2xl border border-gray-200 bg-white p-3 shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="font-semibold text-gray-900 truncate">{group.patientName}</p>
-          {group.patientRegNo ? (
-            <p className="text-[11px] font-mono text-gray-500 mt-0.5">UHID {group.patientRegNo}</p>
+          <p className="font-semibold text-gray-900 truncate">{group.employeeName}</p>
+          {group.employeeId ? (
+            <p className="text-[11px] font-mono text-gray-500 mt-0.5">ID {group.employeeId}</p>
           ) : null}
           {splitIssueCount > 1 ? (
             <p className="text-xs text-violet-700 font-semibold mt-1">Split · {splitIssueCount} issues</p>

@@ -74,7 +74,7 @@ async function main() {
       // eslint-disable-next-line no-console
       console.log("[repair] updated", {
         id: String(row._id),
-        patientName: row.patientName,
+        employeeName: row.employeeName,
         patch,
       });
     }

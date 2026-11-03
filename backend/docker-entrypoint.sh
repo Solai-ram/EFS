@@ -6,8 +6,9 @@ BUNDLED="/app/uploads-bundled"
 
 mkdir -p "$UPLOADS/feedback-voice" "$UPLOADS/feedback-voice/ai_voice"
 
-# Seed the AI Voice Guide prompts baked into the image, file by file. Only the prompt folder:
-# patient recordings must never ship in the image or be copied from it.
+# Seed the AI Voice Guide prompts baked into the image, file by file (none ship by default;
+# admins upload them on the Bot Conversation screen). Only the prompt folder:
+# employee recordings must never ship in the image or be copied from it.
 # Never overwrites, so prompts an admin uploaded survive every restart. Not `cp -rn`:
 # BusyBox treats an existing directory as "already there" and silently copies nothing.
 if [ -d "$BUNDLED/feedback-voice/ai_voice" ]; then
@@ -21,8 +22,5 @@ if [ -d "$BUNDLED/feedback-voice/ai_voice" ]; then
   done
   cd /app
 fi
-
-# Earlier images copied MAPIMS patient recordings onto this volume; remove them if present.
-node scripts/removeMapimsRecordings.js || true
 
 exec node src/index.js

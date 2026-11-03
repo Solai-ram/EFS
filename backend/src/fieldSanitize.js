@@ -27,7 +27,7 @@ const HTML_ENTITY_MAP = {
 
 /**
  * Some upstream systems (e.g. the hospital EMR's front-office report grid) embed
- * patient names inside HTML built for their own web UI, e.g.
+ * employee names inside HTML built for their own web UI, e.g.
  * `<div ...><a href="javascript:fnViewDataURL(...)">Ms.NAME</a></div>`. This
  * extracts the visible text only — plain names pass through unchanged. Regex-based
  * (no DOM/HTML parser), so nothing here ever executes embedded markup or script.
@@ -35,7 +35,7 @@ const HTML_ENTITY_MAP = {
  * @param {string | null | undefined} value
  * @returns {string}
  */
-export function sanitizePatientName(value) {
+export function sanitizeEmployeeName(value) {
   let s = String(value ?? "");
   if (!s.trim()) return "";
   s = s.replace(/<(script|style)[^>]*>[\s\S]*?<\/\1>/gi, " ");

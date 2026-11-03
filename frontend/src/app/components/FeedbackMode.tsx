@@ -2,16 +2,17 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { Heart } from "lucide-react";
 import { getSession } from "../lib/auth";
-import { patientRoutes } from "../lib/patientRoutes";
+import { employeeRoutes } from "../lib/employeeRoutes";
 import {
   getBrandingSettings,
   loadBrandingSettings,
   onBrandingSettingsChange,
 } from "../lib/branding";
 import { FeedbackModeCards } from "./FeedbackModeCards";
+import { feedbackTypeChoices } from "../lib/feedbackTypes";
 import { HOSPITAL } from "../lib/hospital";
 
-/** Same patient feedback entry as Welcome — used when staff open Submit feedback after login. */
+/** Same employee feedback entry as Welcome — used when staff open Submit feedback after login. */
 export function FeedbackMode() {
   const navigate = useNavigate();
   const session = getSession();
@@ -43,33 +44,33 @@ export function FeedbackMode() {
             <Heart className="w-12 h-12 sm:w-16 sm:h-16 text-white" fill="white" />
           </div>
           {session?.role === "staff" ? (
-            <div className="text-sm text-gray-500 mb-2">Staff — patient feedback</div>
+            <div className="text-sm text-gray-500 mb-2">Staff — employee feedback entry</div>
           ) : (
-            <div className="text-sm text-gray-500 mb-2">Service Completed</div>
+            <div className="text-sm text-gray-500 mb-2">Employee Feedback System</div>
           )}
         </div>
 
-        <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2 sm:mb-3 text-gray-800">Thank you for visiting</h1>
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2 sm:mb-3 text-gray-800">Your voice matters</h1>
         <h2 className="text-[1.7rem] sm:text-3xl md:text-[2.6rem] font-bold leading-tight tracking-tight mb-4 text-balance" style={{ color: primaryColor }}>
           {HOSPITAL.name}
         </h2>
 
         <p className="text-base sm:text-lg md:text-xl text-gray-600 mb-6 sm:mb-8 leading-relaxed">
-          Your feedback helps us improve care
+          Your feedback helps us make this a better place to work
         </p>
 
-        <p className="text-sm font-semibold text-gray-700 mb-4">How would you like to share feedback?</p>
+        <p className="text-sm font-semibold text-gray-700 mb-4">What would you like to share?</p>
 
-        <FeedbackModeCards primaryColor={primaryColor} />
+        <FeedbackModeCards primaryColor={primaryColor} choices={feedbackTypeChoices} />
 
         {session && (
           <button
             type="button"
-            onClick={() => navigate(patientRoutes.home)}
+            onClick={() => navigate(employeeRoutes.home)}
             className="text-sm font-medium underline-offset-4 hover:underline"
             style={{ color: primaryColor }}
           >
-            ← Patient welcome screen
+            ← Employee welcome screen
           </button>
         )}
       </div>

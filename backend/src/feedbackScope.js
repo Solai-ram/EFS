@@ -48,7 +48,6 @@ export function scopeMongoCondition(scope) {
   if (scope.departments.length) {
     or.push(
       { department: { $in: scope.departments } },
-      { lookupDepartment: { $in: scope.departments } },
       { "feedbackIssues.department": { $in: scope.departments } }
     );
   }
@@ -79,7 +78,6 @@ export function feedbackInScope(row, scope) {
   return (
     (scope.userId && String(row.assignedToUserId || "") === scope.userId) ||
     inList(row.department, scope.departments) ||
-    inList(row.lookupDepartment, scope.departments) ||
     issues.some((issue) => inList(issue?.department, scope.departments)) ||
     inList(row.service, scope.services) ||
     issues.some((issue) => inList(issue?.recommendedService, scope.services))

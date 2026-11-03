@@ -12,7 +12,7 @@ import {
 } from "./openRouterPrompts.js";
 
 /**
- * OpenRouter OpenAI-compatible chat completions for patient-feedback analysis.
+ * OpenRouter OpenAI-compatible chat completions for employee-feedback analysis.
  * Requires OPENROUTER_API_KEY in environment.
  * @see https://openrouter.ai/docs/api/reference/overview
  */
@@ -124,7 +124,7 @@ export function resolveDepartmentFromAi(raw, choices) {
 export const resolveServiceFromAi = resolveDepartmentFromAi;
 
 /**
- * @param {{ patientName: string; department: string; rating: number; comments: string }} input (rating is not sent to the model; sentiment uses comments only; patientName is only used to mask the name in the comments and is never sent)
+ * @param {{ employeeName: string; department: string; rating: number; comments: string }} input (rating is not sent to the model; sentiment uses comments only; employeeName is only used to mask the name in the comments and is never sent)
  * @param {{ feedbackId?: string; serviceChoices?: { name: string; description?: string }[]; departmentChoices?: { name: string }[] }} [options]
  * @returns {Promise<{ sentiment: string; urgency: string; topics: string[]; summary: string; inferredDepartment?: string | null } | null>}
  */
@@ -241,7 +241,7 @@ function normalizeIssueFromAi(raw, serviceChoices, departmentChoices, emrDepartm
   };
 }
 
-export async function analyzePatientFeedback(input, options = {}) {
+export async function analyzeEmployeeFeedback(input, options = {}) {
   const feedbackId = options.feedbackId ?? "unknown";
 
   const apiKey = getApiKey();
@@ -255,12 +255,12 @@ export async function analyzePatientFeedback(input, options = {}) {
 
   const comments = String(input.comments || "").trim();
   // The model needs what was said about the visit, not who said it.
-  const commentsForAi = redactPersonalDetails(comments, { names: [input.patientName] });
+  const commentsForAi = redactPersonalDetails(comments, { names: [input.employeeName] });
   const truncatedComments =
     commentsForAi.length > 4000 ? `${commentsForAi.slice(0, 4000)}…` : commentsForAi;
 
   const emrDepartment = sanitizeOptionalLabel(
-    input.patientDepartment || input.department
+    input.employeeDepartment || input.department
   );
   const serviceHint = sanitizeOptionalLabel(input.service);
   const serviceChoices = Array.isArray(options.serviceChoices)
@@ -287,7 +287,7 @@ export async function analyzePatientFeedback(input, options = {}) {
   console.log("[openrouter] request", {
     feedbackId,
     model,
-    patientDepartment: emrDepartment.slice(0, 80) || "(none)",
+    employeeDepartment: emrDepartment.slice(0, 80) || "(none)",
     serviceHint: serviceHint.slice(0, 80) || "(none)",
     departmentCatalogSize: departmentChoices.length,
     serviceCatalogSize: serviceChoices.length,

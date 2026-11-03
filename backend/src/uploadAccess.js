@@ -5,8 +5,8 @@ import { getJwtSecret } from "./auth.js";
 /**
  * Access control for /uploads.
  *
- * The AI Voice Guide prompts are played to anonymous patients, so that folder stays public.
- * Everything else under /uploads is a patient recording: it is only served with a signature
+ * The AI Voice Guide prompts are played to unauthenticated employees, so that folder stays public.
+ * Everything else under /uploads is an employee recording: it is only served with a signature
  * that the API adds when it hands the link to someone allowed to see that feedback. An <audio>
  * element cannot send the login token, which is why the link itself carries the permission.
  */

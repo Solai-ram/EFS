@@ -5,9 +5,7 @@ import {
   AlertTriangle,
   ArrowDownRight,
   ArrowUpRight,
-  Building2,
   ChevronRight,
-  Layers,
   MessageSquareText,
   Minus,
   RefreshCw,
@@ -71,7 +69,6 @@ export function DashboardPage({ feedbackPath }: DashboardPageProps) {
   const openFeedback = (filters: Parameters<typeof feedbackLinkQuery>[1] = {}) =>
     navigate(`${feedbackPath}${feedbackLinkQuery(period, filters)}`);
 
-  const scopeNames = scope ? [...scope.departments, ...scope.services] : [];
   const pending = now.feedback - now.analysed;
   /** Remounting charts on a period change replays their entrance animation. */
   const periodKey = `${range.period}:${period.start.getTime()}:${period.end.getTime()}`;
@@ -90,15 +87,9 @@ export function DashboardPage({ feedbackPath }: DashboardPageProps) {
 
         <Reveal as="section" className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#8A6A10]">Patient feedback</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#8A6A10]">Employee feedback</p>
             <h1 className="mt-1 text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">Dashboard</h1>
-            <p className="mt-1 text-sm text-gray-600">
-              {scope
-                ? scopeNames.length
-                  ? `Your ${scopeNames.length === 1 ? "area" : "areas"}: ${scopeNames.join(", ")}`
-                  : "No department is linked to your account yet. Ask an admin to set you as HOD of your department."
-                : "How patients rated their visit, across the whole hospital."}
-            </p>
+            <p className="mt-1 text-sm text-gray-600">How employees rated their experience.</p>
           </div>
           <PeriodPicker range={range} onChange={setRange} onRefresh={() => void reload()} busy={isLoading} />
         </Reveal>
@@ -211,36 +202,6 @@ export function DashboardPage({ feedbackPath }: DashboardPageProps) {
             ) : (
               <Empty>Nothing analysed in this period yet.</Empty>
             )}
-          </Reveal>
-        </section>
-
-        <section className="grid grid-cols-1 gap-4 sm:gap-6 xl:grid-cols-2">
-          <Reveal order={7}>
-            <SentimentList
-              icon={<Building2 size={16} />}
-              title="Departments"
-              rows={tables.departments}
-              loading={firstLoad}
-              empty="No feedback with a department in this period."
-              footnote={
-                tables.unassignedIssues > 0
-                  ? `${tables.unassignedIssues} issue${tables.unassignedIssues === 1 ? "" : "s"} had no department and ${tables.unassignedIssues === 1 ? "is" : "are"} not shown.`
-                  : undefined
-              }
-              animationKey={periodKey}
-              onRowClick={(name) => openFeedback({ department: name })}
-            />
-          </Reveal>
-          <Reveal order={8}>
-            <SentimentList
-              icon={<Layers size={16} />}
-              title="Services"
-              rows={tables.services}
-              loading={firstLoad}
-              empty="No feedback mentioned a service in this period."
-              animationKey={periodKey}
-              onRowClick={(name) => openFeedback({ service: name })}
-            />
           </Reveal>
         </section>
 
@@ -720,136 +681,8 @@ function SentimentMix({ positive, neutral, negative }: { positive: number; neutr
 
 /* ------------------------------------------------------------------------------------------ */
 
-function SentimentList({
-  icon,
-  title,
-  rows,
-  loading,
-  empty,
-  footnote,
-  animationKey,
-  onRowClick,
-}: {
-  icon: ReactNode;
-  title: string;
-  rows: SentimentLeaderboardRow[];
-  loading: boolean;
-  empty: string;
-  footnote?: string;
-  animationKey: string;
-  onRowClick: (name: string) => void;
-}) {
-  const [sort, setSort] = useState<"volume" | "negative">("volume");
-  const [showAll, setShowAll] = useState(false);
-  const sorted = useMemo(
-    () =>
-      [...rows].sort((a, b) =>
-        sort === "negative"
-          ? b.negativePct - a.negativePct || b.negative - a.negative
-          : b.total - a.total
-      ),
-    [rows, sort]
-  );
-  const visible = showAll ? sorted : sorted.slice(0, 7);
-
-  return (
-    <div className={`${CARD} h-full p-5 sm:p-6`}>
-      <CardHeading
-        icon={icon}
-        title={title}
-        subtitle="Each issue a patient raised counts once · click a row to read it"
-        aside={
-          rows.length > 1 ? (
-            <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5 text-xs" role="tablist" aria-label="Sort">
-              {(["volume", "negative"] as const).map((key) => (
-                <button
-                  key={key}
-                  type="button"
-                  role="tab"
-                  aria-selected={sort === key}
-                  onClick={() => setSort(key)}
-                  className={`rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
-                    sort === key ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-800"
-                  }`}
-                >
-                  {key === "volume" ? "Most feedback" : "Most negative"}
-                </button>
-              ))}
-            </div>
-          ) : null
-        }
-      />
-      {rows.length ? (
-        <div className="mt-3">
-          <Legend
-            items={[
-              { label: "Positive", color: SENTIMENT_COLORS.positive },
-              { label: "Neutral", color: SENTIMENT_COLORS.neutral },
-              { label: "Negative", color: SENTIMENT_COLORS.negative },
-            ]}
-          />
-        </div>
-      ) : null}
-
-      {loading ? (
-        <Skeleton className="mt-5 h-56 w-full" />
-      ) : rows.length ? (
-        <motion.ul layout className="mt-3 divide-y divide-gray-100" key={animationKey}>
-          {visible.map((row, i) => (
-            <motion.li key={row.name} layout transition={{ duration: 0.35, ease: EASE_OUT }}>
-              <button
-                type="button"
-                onClick={() => onRowClick(row.name)}
-                title={`${row.positive} positive · ${row.neutral} neutral · ${row.negative} negative`}
-                className="group grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 rounded-lg px-2 py-3 text-left transition-colors hover:bg-[#faf7f2] sm:grid-cols-[minmax(0,14rem)_minmax(0,1fr)_auto]"
-              >
-                <span className="truncate text-sm font-medium text-gray-800">{row.name}</span>
-                <span className="col-span-2 row-start-2 sm:col-span-1 sm:row-start-auto">
-                  <SegmentBar
-                    delay={0.04 * i}
-                    segments={[
-                      { key: "p", label: "Positive", value: row.positive, color: SENTIMENT_COLORS.positive },
-                      { key: "n", label: "Neutral", value: row.neutral, color: SENTIMENT_COLORS.neutral },
-                      { key: "x", label: "Negative", value: row.negative, color: SENTIMENT_COLORS.negative },
-                    ]}
-                  />
-                  <span className="mt-1 flex justify-between text-[11px] tabular-nums text-gray-500">
-                    <span>{row.positivePct}% positive</span>
-                    <span>{row.negativePct}% negative</span>
-                  </span>
-                </span>
-                <span className="flex items-center gap-1 row-start-1 col-start-2 sm:row-start-auto sm:col-start-auto">
-                  <span className="min-w-[2rem] rounded-md bg-gray-100 px-1.5 py-0.5 text-center text-xs font-semibold tabular-nums text-gray-700">
-                    {row.total}
-                  </span>
-                  <ChevronRight size={16} className="text-gray-300 transition-transform group-hover:translate-x-0.5 group-hover:text-gray-500" />
-                </span>
-              </button>
-            </motion.li>
-          ))}
-        </motion.ul>
-      ) : (
-        <Empty>{empty}</Empty>
-      )}
-
-      {footnote || rows.length > 7 ? (
-        <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-gray-500">
-          <span>{footnote}</span>
-          {rows.length > 7 ? (
-            <button type="button" onClick={() => setShowAll(!showAll)} className="text-xs font-semibold text-primary hover:underline">
-              {showAll ? "Show fewer" : `Show all ${rows.length}`}
-            </button>
-          ) : null}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------------------------------ */
-
 function AttentionRow({ item, order, onOpen }: { item: FeedbackItem; order: number; onOpen: () => void }) {
-  const initials = (item.patientName || "?")
+  const initials = (item.employeeName || "?")
     .split(/\s+/)
     .filter(Boolean)
     .slice(0, 2)
@@ -871,9 +704,9 @@ function AttentionRow({ item, order, onOpen }: { item: FeedbackItem; order: numb
         </span>
         <span className="min-w-0 flex-1">
           <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-            <span className="font-semibold text-gray-900">{item.patientName}</span>
+            <span className="font-semibold text-gray-900">{item.employeeName}</span>
             <span className="truncate text-xs text-gray-500">
-              {item.lookupDepartment || item.department || "No department"}
+              {item.department || "No department"}
             </span>
           </span>
           <span className="mt-0.5 line-clamp-2 block text-sm text-gray-600">

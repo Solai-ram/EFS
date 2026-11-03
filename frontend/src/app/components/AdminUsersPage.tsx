@@ -122,7 +122,7 @@ function toggleId(ids: string[], id: string): string[] {
 
 /** Fallback role list when the roles API is unavailable. */
 const FALLBACK_ROLES = [
-  { key: "staff", label: "Staff", description: "Submits feedback for patients and views the dashboard." },
+  { key: "staff", label: "Staff", description: "Submits feedback for employees and views the dashboard." },
   { key: "hod", label: "HOD (Head of Department)", description: "Sees feedback for the departments and services they own." },
   { key: "admin", label: "Admin", description: "Manages users, settings and all feedback." },
 ];

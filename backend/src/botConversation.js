@@ -9,7 +9,7 @@ import {
   defaultQuestionAudioRelPath,
 } from "./botConversationDefaults.js";
 
-/** Public link for prompts; signed, expiring link for patient answer recordings. */
+/** Public link for prompts; signed, expiring link for employee answer recordings. */
 export function mediaUrlFromRel(rel) {
   if (!rel) return null;
   return uploadUrlForRel(rel);

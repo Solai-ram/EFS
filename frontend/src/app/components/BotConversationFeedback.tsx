@@ -12,9 +12,9 @@ import {
 } from "../lib/api";
 import { transcribeVoiceRecordingChunked } from "../lib/audioTranscription";
 import { getSession, isInternalUser } from "../lib/auth";
-import { usePatientIdentity } from "../lib/usePatientIdentity";
-import { PatientIdentitySection } from "./PatientIdentitySection";
-import { PatientFooter, PrimaryAction, StatusNote, StepHeading } from "./PatientCard";
+import { useEmployeeIdentity } from "../lib/useEmployeeIdentity";
+import { EmployeeIdentitySection } from "./EmployeeIdentitySection";
+import { EmployeeFooter, PrimaryAction, StatusNote, StepHeading } from "./EmployeeCard";
 import { FeedbackRemarkField } from "./StaffRemarksField";
 import {
   getBrandingSettings,
@@ -56,7 +56,7 @@ export function BotConversationFeedback() {
   const [config, setConfig] = useState<BotConversationConfig | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [phase, setPhase] = useState<Phase>("loading");
-  const identity = usePatientIdentity();
+  const identity = useEmployeeIdentity();
   const [questionIndex, setQuestionIndex] = useState(0);
   const [questionPhase, setQuestionPhase] = useState<QuestionPhase>("prompt");
   const [thinkSeconds, setThinkSeconds] = useState(DEFAULT_BOT_THINK_SECONDS);
@@ -129,8 +129,7 @@ export function BotConversationFeedback() {
       if (
         prev.startsWith("Please enter") ||
         prev.startsWith("Please select") ||
-        prev.startsWith("Enter your UHID") ||
-        prev.startsWith("Choose your visit")
+        prev.startsWith("Date of joining")
       ) {
         return null;
       }
@@ -233,7 +232,7 @@ export function BotConversationFeedback() {
         rating: 3,
         comments: mergedComments,
         ...(remark.trim() ? { staffRemarks: remark.trim() } : {}),
-        source: internalSubmit ? "staff" : "patient",
+        source: internalSubmit ? "staff" : "employee",
         submissionMode: "bot",
         conversationAnswers: answers,
         answerAudioBlobs: answerBlobs,
@@ -520,26 +519,18 @@ export function BotConversationFeedback() {
               style={{ borderLeftColor: "var(--brand-gold)" }}
             >
               {config?.introText ||
-                `வணக்கம்! ${HOSPITAL.nameTaLocative} உங்கள் அனுபவத்தைப் பற்றி சில கேள்விகள் கேட்கிறோம்.`}
+                `வணக்கம்! ${HOSPITAL.nameTaLocative} உங்கள் பணி அனுபவத்தைப் பற்றி சில கேள்விகள் கேட்கிறோம்.`}
             </p>
 
             <StepHeading step={1} title="Your details" primaryColor={primaryColor} />
-            <PatientIdentitySection identity={identity} primaryColor={primaryColor} />
+            <EmployeeIdentitySection identity={identity} primaryColor={primaryColor} />
 
             <div className="mb-6">
             <StatusNote primaryColor={primaryColor} ready={identity.identityReady}>
-              {identity.identificationMode === "name" ? (
-                identity.identityReady ? (
-                  <>Ready to start, {identity.resolvedPatientName}.</>
-                ) : !identity.nameReady ? (
-                  "Please enter your name and select your department before starting the conversation."
-                ) : (
-                  "Please select your department before starting the conversation."
-                )
-              ) : identity.identityReady ? (
-                "Visit confirmed from EMR. You can start the conversation."
+              {identity.identityReady ? (
+                <>Ready to start, {identity.resolvedEmployeeName}.</>
               ) : (
-                "Look up your registration number and confirm your visit from EMR before starting."
+                "Please fill in your name, employee ID and department before starting the conversation."
               )}
             </StatusNote>
             </div>
@@ -694,7 +685,7 @@ export function BotConversationFeedback() {
         )}
       </div>
 
-      <PatientFooter onBack={() => navigate("/feedback")} />
+      <EmployeeFooter onBack={() => navigate("/feedback")} />
     </div>
   );
 }

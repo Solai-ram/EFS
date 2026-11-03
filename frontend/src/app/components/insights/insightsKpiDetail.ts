@@ -11,7 +11,7 @@ import { collectComplaintSlices } from "../../lib/complaintTopics";
 
 export type InsightsKpiKind =
   | "submissions"
-  | "patients"
+  | "employees"
   | "positive"
   | "neutral"
   | "negative"
@@ -19,7 +19,7 @@ export type InsightsKpiKind =
 
 export const KPI_LABELS: Record<InsightsKpiKind, string> = {
   submissions: "Submissions",
-  patients: "Patients",
+  employees: "Employees",
   positive: "Positive (AI)",
   neutral: "Neutral (AI)",
   negative: "Negative (AI)",
@@ -50,10 +50,7 @@ export function rowsForKpi(kind: InsightsKpiKind, rows: FeedbackItem[]): Feedbac
   }
 }
 
-export function visitTypeLabel(encounterType: string | null | undefined): string {
-  if (encounterType === "op") return "OP";
-  return "Name only";
-}
+export { feedbackTypeLabel as visitTypeLabel } from "../../lib/feedbackTypes";
 
 export type SubmissionChartFilter =
   | { type: "period"; key: string }
@@ -160,7 +157,7 @@ export function rowsForSubmissionChartFilter(
       return rows.filter((item) => new Date(item.createdAt).getHours() === filter.hour);
     case "visit-department":
       return rows.filter((item) => {
-        const dept = sanitizeOptionalLabel(item.lookupDepartment || item.department);
+        const dept = sanitizeOptionalLabel(item.department);
         if (dept !== filter.name) return false;
         if (!filter.sentiment) return true;
         return getAiSentimentBucket(item) === filter.sentiment;

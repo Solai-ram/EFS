@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { sanitizePatientName } from "./fieldSanitize.js";
+import { sanitizeEmployeeName } from "./fieldSanitize.js";
 import { HOSPITAL } from "./hospital.js";
 
 const departmentServiceSchema = new mongoose.Schema(
@@ -73,15 +73,39 @@ const feedbackSchema = new mongoose.Schema(
   {
     // set() runs on every assignment (create, insertMany, doc.field=) so no
     // write path — including future ones — can persist HTML/markup here.
-    patientName: { type: String, required: true, trim: true, set: sanitizePatientName },
-    patientRegNo: { type: String, default: "", trim: true },
-    patientEncounterType: { type: String, enum: ["", "op", "ip"], default: "" },
-    ward: { type: String, default: "", trim: true },
-    ipNo: { type: String, default: "", trim: true },
-    visitOrAdmissionDate: { type: String, default: "", trim: true },
+    employeeName: { type: String, required: true, trim: true, set: sanitizeEmployeeName },
+    employeeId: { type: String, required: true, trim: true, index: true },
+    /** new_joiner = 15-day stay interview, relieving = exit interview, general = open feedback. */
+    feedbackType: {
+      type: String,
+      enum: ["new_joiner", "relieving", "general"],
+      default: "general",
+    },
+    /** Required for new_joiner and relieving, optional for general. ISO date (YYYY-MM-DD). */
+    dateOfJoining: { type: String, default: "", trim: true },
+    /** Relieving only. ISO date (YYYY-MM-DD). */
+    lastWorkingDay: { type: String, default: "", trim: true },
     department: { type: String, default: "", trim: true },
-    lookupDepartment: { type: String, default: "", trim: true, index: true },
     service: { type: String, default: "", trim: true },
+    /**
+     * Structured questionnaire responses. The server also flattens these into
+     * `comments` so AI sentiment, ticket rules and dashboards work off one text.
+     * `value` holds the answer: rating "1".."5", choice "yes"/"no" or an option id,
+     * text the free-form string, list the JSON array of items.
+     */
+    answers: {
+      type: [
+        {
+          questionId: { type: String, required: true },
+          section: { type: String, default: "" },
+          questionText: { type: String, default: "" },
+          kind: { type: String, enum: ["text", "rating", "yesno", "choice", "list"], default: "text" },
+          value: { type: String, default: "" },
+          detail: { type: String, default: "" },
+        },
+      ],
+      default: [],
+    },
     suggestedAction: { type: String, default: "", trim: true },
     feedbackIssues: {
       type: [
@@ -106,7 +130,7 @@ const feedbackSchema = new mongoose.Schema(
     isSplitChild: { type: Boolean, default: false },
     rating: { type: Number, required: true, min: 1, max: 5 },
     comments: { type: String, default: "", trim: true },
-    /** Internal note when staff/HOD submits on behalf of patient */
+    /** Internal note when staff/HOD submits on behalf of employee */
     staffRemarks: { type: String, default: "", trim: true },
     /** HOD note required when marking a ticket Resolved (visible to admin). */
     resolutionNote: { type: String, default: "", trim: true },
@@ -135,8 +159,8 @@ const feedbackSchema = new mongoose.Schema(
     },
     source: {
       type: String,
-      enum: ["patient", "staff", "ai"],
-      default: "patient",
+      enum: ["employee", "staff", "ai"],
+      default: "employee",
     },
     complaintSignature: { type: String, default: "", index: true },
     ticketId: { type: String, default: null, index: true },
@@ -185,7 +209,8 @@ const feedbackSchema = new mongoose.Schema(
 );
 
 feedbackSchema.index({ createdAt: -1 });
-feedbackSchema.index({ createdAt: -1, patientEncounterType: 1 });
+feedbackSchema.index({ createdAt: -1, feedbackType: 1 });
+feedbackSchema.index({ employeeId: 1, feedbackType: 1, createdAt: -1 });
 /** HOD queue: filtered by assignee, sorted newest-first. Without this the
  *  dashboard collection-scans every feedback row on each load. */
 feedbackSchema.index({ assignedToUserId: 1, createdAt: -1 });
@@ -230,7 +255,7 @@ const brandingSchema = new mongoose.Schema(
     accentColor: { type: String, required: true, default: HOSPITAL.theme.accentColor },
     pageBackgroundColor: { type: String, required: true, default: HOSPITAL.theme.pageBackgroundColor },
     logoDataUrl: { type: String, default: null },
-    /** Max seconds for patient voice feedback recording (admin-controlled). */
+    /** Max seconds for employee voice feedback recording (admin-controlled). */
     voiceRecordingMaxSeconds: { type: Number, default: 120, min: 15, max: 600 },
     /** Countdown after each bot question before recording (AI Voice Guide). */
     botThinkSeconds: { type: Number, default: 3, min: 1, max: 30 },
@@ -243,7 +268,7 @@ const brandingSchema = new mongoose.Schema(
      * Super Admin enables it; tickets are still recorded in the meantime.
      */
     ticketingEnabled: { type: Boolean, default: false },
-    /** Admin Departments screen. On by default; a Super Admin can switch it off. The department list still feeds the patient forms either way. */
+    /** Admin Departments screen. On by default; a Super Admin can switch it off. The department list still feeds the employee forms either way. */
     departmentsEnabled: { type: Boolean, default: true },
     /** Admin Services screen. On by default; a Super Admin can switch it off. */
     servicesEnabled: { type: Boolean, default: true },
@@ -258,7 +283,8 @@ const summaryReportSchema = new mongoose.Schema(
     periodKey: { type: String, required: true, trim: true },
     periodStart: { type: Date, required: true },
     periodEnd: { type: Date, required: true },
-    groupType: { type: String, enum: ["department", "service"], required: true },
+    // "department" / "service" only exist on reports written before the app was converted for HR.
+    groupType: { type: String, enum: ["feedbackType", "department", "service"], required: true },
     groupName: { type: String, required: true, trim: true },
     feedbackCount: { type: Number, default: 0 },
     sentimentCounts: {

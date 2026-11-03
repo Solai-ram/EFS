@@ -6,7 +6,7 @@ import { sanitizeOptionalLabel } from "./fieldSanitize.js";
  */
 export function analyticsDepartmentFromFeedback(item, issue) {
   return sanitizeOptionalLabel(
-    item.lookupDepartment || issue?.department || item.department
+    issue?.department || item.department
   );
 }
 

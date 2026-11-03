@@ -18,8 +18,8 @@ import {
 } from "../lib/insightsFilters";
 import { FeedbackDetailDialog } from "./FeedbackDetailDialog";
 import { ListPagination } from "./ListPagination";
-import { PatientGroupedFeedbackTable } from "./PatientGroupedFeedbackTable";
-import { buildPatientFeedbackGroups } from "../lib/patientFeedbackGroups";
+import { EmployeeGroupedFeedbackTable } from "./EmployeeGroupedFeedbackTable";
+import { buildEmployeeFeedbackGroups } from "../lib/employeeFeedbackGroups";
 import { feedbackModeLabel, type EffectiveFeedbackMode } from "../lib/feedbackDisplay";
 import {
   Select,
@@ -156,7 +156,7 @@ export function RecentFeedbackBySentiment({
 
   const filtered = useMemo(() => {
     return sorted.filter((item) => {
-      if (searchQuery && !item.patientName?.toLowerCase().includes(searchQuery)) return false;
+      if (searchQuery && !item.employeeName?.toLowerCase().includes(searchQuery)) return false;
       if (modeFilter !== "all") {
         const mode = (item.submissionGroupId && modeBySubmissionGroup.get(item.submissionGroupId)) || rowMode(item);
         if (mode !== modeFilter) return false;
@@ -174,7 +174,7 @@ export function RecentFeedbackBySentiment({
     });
   }, [sorted, searchQuery, sentimentFilter, statusFilter, departmentFilter, serviceFilter, modeFilter, modeBySubmissionGroup]);
 
-  const patientGroups = useMemo(() => buildPatientFeedbackGroups(filtered), [filtered]);
+  const employeeGroups = useMemo(() => buildEmployeeFeedbackGroups(filtered), [filtered]);
 
   useEffect(() => {
     setPage(1);
@@ -213,7 +213,7 @@ export function RecentFeedbackBySentiment({
     onListScopeChange(scope);
   }
 
-  const totalPages = getTotalPages(patientGroups.length, pageSize);
+  const totalPages = getTotalPages(employeeGroups.length, pageSize);
   const safePage = Math.min(Math.max(1, page), totalPages);
 
   useEffect(() => {
@@ -221,8 +221,8 @@ export function RecentFeedbackBySentiment({
   }, [page, safePage]);
 
   const visibleGroups = useMemo(
-    () => paginateSlice(patientGroups, safePage, pageSize),
-    [patientGroups, safePage, pageSize]
+    () => paginateSlice(employeeGroups, safePage, pageSize),
+    [employeeGroups, safePage, pageSize]
   );
 
   const hasActiveFilters =
@@ -285,8 +285,8 @@ export function RecentFeedbackBySentiment({
           <div className="min-w-0">
             <h3 className="text-lg font-semibold text-gray-900">Recent feedback</h3>
             <p className="mt-0.5 text-xs text-gray-500 tabular-nums">
-              {filtered.length} {filtered.length === 1 ? "entry" : "entries"} · {patientGroups.length} patient
-              {patientGroups.length !== 1 ? "s" : ""} · {listScopeLabel}
+              {filtered.length} {filtered.length === 1 ? "entry" : "entries"} · {employeeGroups.length} employee
+              {employeeGroups.length !== 1 ? "s" : ""} · {listScopeLabel}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -354,8 +354,8 @@ export function RecentFeedbackBySentiment({
                 type="search"
                 value={searchText}
                 onChange={(e) => setSearchText(e.target.value)}
-                placeholder="Search by patient name"
-                aria-label="Search by patient name"
+                placeholder="Search by employee name"
+                aria-label="Search by employee name"
                 className="h-9 w-full rounded-lg border border-gray-200 bg-white pl-9 pr-9 text-sm text-gray-900 outline-none placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/15"
               />
               {searchText ? (
@@ -554,7 +554,7 @@ export function RecentFeedbackBySentiment({
         <p className="p-6 text-gray-600">No rows match the selected filters.</p>
       ) : (
         <>
-          <PatientGroupedFeedbackTable
+          <EmployeeGroupedFeedbackTable
             groups={visibleGroups}
             variant="overview"
             onViewItem={openDetail}
@@ -564,13 +564,13 @@ export function RecentFeedbackBySentiment({
           <ListPagination
             page={safePage}
             pageSize={pageSize}
-            totalItems={patientGroups.length}
+            totalItems={employeeGroups.length}
             onPageChange={setPage}
             onPageSizeChange={(size) => {
               setPageSize(size);
               setPage(1);
             }}
-            itemLabel="patients"
+            itemLabel="employees"
           />
         </>
       )}
