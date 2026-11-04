@@ -25,17 +25,16 @@ export function LoginPage() {
       navigate("/admin", { replace: true });
       return;
     }
-    // Staff, management and HODs share the Dashboard; a HOD's data is limited on the server.
     if (capabilities.includes("insights.view")) {
       navigate(nextPath || "/insights", { replace: true });
       return;
     }
     if (capabilities.includes("feedback.read.assigned")) {
-      navigate(nextPath || "/dashboard", { replace: true });
+      navigate(nextPath || "/admin", { replace: true });
       return;
     }
     if (capabilities.includes("feedback.read.all")) {
-      navigate(nextPath || "/dashboard", { replace: true });
+      navigate(nextPath || "/admin", { replace: true });
       return;
     }
     navigate(nextPath || "/feedback", { replace: true });
@@ -55,8 +54,8 @@ export function LoginPage() {
 
   return (
     <div className="min-h-[70vh] flex items-center justify-center px-4">
-      <div className="w-full max-w-md overflow-hidden bg-white rounded-3xl shadow-xl border border-gray-200/70">
-        <div aria-hidden="true" className="h-1.5 bg-gradient-to-r from-primary via-primary to-brand-gold" />
+      <div className="w-full max-w-md overflow-hidden bg-white rounded-3xl shadow-[0_24px_60px_-20px_rgb(24_18_18/0.35)] border border-gray-200/70">
+        <div aria-hidden="true" className="brand-stripe h-1.5" />
         <div className="p-8 sm:p-10">
         <div className="flex justify-center mb-6">
           <img
@@ -65,13 +64,13 @@ export function LoginPage() {
             className="h-32 sm:h-40 w-auto max-w-[min(100%,300px)] object-contain"
           />
         </div>
-        <p className="text-center text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8A6A10] mb-2">
+        <p className="text-center text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9A5B00] mb-2">
           Employee Feedback System
         </p>
         <h2 className="text-2xl sm:text-[1.7rem] font-bold leading-tight text-gray-900 mb-3 text-center">{HOSPITAL.name}</h2>
         <div aria-hidden="true" className="mx-auto mb-4 h-0.5 w-12 rounded-full bg-brand-gold" />
         <p className="text-sm text-gray-500 mb-7 text-center">
-          Login as Admin, Staff, or HOD to manage feedback.
+          Login as Admin or Super Admin to manage feedback.
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -83,7 +82,7 @@ export function LoginPage() {
               type="text"
               value={username}
               onChange={(event) => setUsername(event.target.value)}
-              placeholder="admin / staff / hod"
+              placeholder="Username"
               className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl transition focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none"
             />
           </div>

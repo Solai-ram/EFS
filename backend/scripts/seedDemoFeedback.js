@@ -13,6 +13,7 @@ import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
 import { HOSPITAL } from "../src/hospital.js";
+import { buildCommentsFromQuestionnaire, getQuestionnaire } from "../src/employeeQuestionnaires.js";
 import { Feedback, mongoose } from "../src/models.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -28,7 +29,7 @@ function argNumber(name, fallback) {
 }
 
 // Seeded random numbers, so the same command gives the same data.
-let seed = 20261017;
+let seed = argNumber("--seed", Date.now() % 4294967296);
 function random() {
   seed = (seed * 1664525 + 1013904223) % 4294967296;
   return seed / 4294967296;
@@ -128,6 +129,106 @@ const TAMIL_VOICE = {
   ],
 };
 
+/** Spoken-style answers for the key questions, by overall tone. Questions without an entry are left blank. */
+const ANSWER_BANK = {
+  pc_role_clarity: {
+    positive: ["Yes, my duties were explained clearly on the first day.", "Yes, I know exactly what is expected of me."],
+    negative: ["Not really, I am still unsure which tasks are mine.", "No, different seniors tell me different things."],
+  },
+  pc_tools: {
+    positive: ["Yes, I have everything I need to do my work.", "Yes, the equipment and logins were ready."],
+    negative: ["No, I still do not have a login for the hospital software.", "No, the equipment in my area is often not working."],
+  },
+  pc_team: {
+    positive: ["Yes, everyone has been very friendly and helpful.", "Yes, my colleagues support me a lot."],
+    negative: ["Not always, some colleagues do not help new people.", "No, I feel left out of the team."],
+  },
+  pc_expectation: {
+    positive: ["Yes, it is what I expected.", "Yes, even better than I expected."],
+    negative: ["No, the workload is far more than I was told at the interview.", "No, my role is different from what was promised."],
+  },
+  pc_big_ask: {
+    positive: ["Just keep guiding me the way you are now.", "A little more training on the billing software."],
+    negative: ["Please arrange my software access this week.", "Please fix my duty roster, it changes without notice."],
+  },
+  a_induction: {
+    positive: ["The induction was well organised and very useful.", "Good orientation, the mentor explained everything."],
+    negative: ["The induction was rushed and I missed a lot.", "I only got half a day of orientation."],
+  },
+  a_mentor: {
+    positive: ["Yes, my mentor is always available.", "Yes, I can ask questions any time."],
+    negative: ["No, my mentor is always busy.", "I have not met my mentor properly yet."],
+  },
+  b_workload: {
+    positive: ["Yes, it is manageable.", "A bit heavy sometimes but fine."],
+    negative: ["No, there are too few staff and the workload is too high.", "No, I often stay beyond my duty hours."],
+  },
+  c_skills: {
+    positive: ["Yes, I am able to use my skills.", "Yes, I get chances to learn more."],
+    negative: ["No, my training is not being used.", "Not much, I only do routine tasks."],
+  },
+  sl_red: {
+    positive: [""],
+    negative: ["No software login after two weeks.", "No uniform and no locker, I cannot start work properly.", "My duty roster has not been given to me."],
+  },
+  x_like: {
+    positive: ["The team was supportive and my seniors helped me learn.", "I liked the working atmosphere and the patients."],
+    negative: ["Only the colleagues, nothing else.", "I liked my patients, but not much else."],
+  },
+  x_duties_defined: {
+    positive: ["Yes, my duties were clear.", "Mostly yes."],
+    negative: ["No, my night duty tasks were never written down.", "No, duties kept changing."],
+  },
+  x_skill_opportunity: {
+    positive: ["Yes, I got good chances to use my skills.", "Yes, I learned a lot here."],
+    negative: ["No, I was never given a chance to use my training.", "No, there was no scope to grow."],
+  },
+  x_cooperation: {
+    positive: ["Very good cooperation from colleagues and my manager.", "Satisfied, everyone helped."],
+    negative: ["Colleagues were good, but my manager rarely listened.", "Not satisfied, there was little cooperation."],
+  },
+  x_recognition: {
+    positive: ["Yes, my manager appreciated my work.", "Yes, I was recognised in the staff meeting."],
+    negative: ["No, I worked extra shifts for months and nobody said thank you.", "No recognition at all."],
+  },
+  x_guidance: {
+    positive: ["Very satisfied, my manager guided me well.", "Good guidance and advice."],
+    negative: ["Not satisfied, I never got proper guidance.", "Very little guidance."],
+  },
+  x_leaving_reason: {
+    positive: ["Higher studies.", "Moving to my home town for family reasons.", "A personal reason, nothing against the hospital."],
+    negative: ["Salary is low and there is no promotion path.", "Heavy workload and no recognition.", "Problems with my manager."],
+  },
+  x_dept_improvements: {
+    positive: ["Keep the same support and add a few more staff.", "Better planning of the duty roster."],
+    negative: ["More staff, fixed duty hours and a fair roster.", "Better equipment and clearer instructions."],
+  },
+  x_rejoin: {
+    positive: ["Yes, I would like to come back.", "Yes, if there is a suitable post."],
+    negative: ["Maybe, if the pay and recognition improve.", "No."],
+  },
+  x_what_to_change: {
+    positive: ["Nothing much, my reason was personal.", "A little more salary would have helped."],
+    negative: ["A clear promotion path, better pay and recognition from the manager.", "Fewer extra shifts and a respectful manager."],
+  },
+};
+
+function answersFor(feedbackType, tone, blocker) {
+  const questions = getQuestionnaire(feedbackType);
+  const answers = questions.map((q) => {
+    const bank = ANSWER_BANK[q.id];
+    let value = "";
+    if (bank) {
+      // Mostly in line with the overall tone, occasionally mixed.
+      const useTone = random() < 0.8 ? tone : tone === "positive" ? "negative" : "positive";
+      value = pick(bank[useTone] || bank[tone]);
+    }
+    if (q.id === "sl_red") value = blocker ? pick(ANSWER_BANK.sl_red.negative) : "";
+    return { questionId: q.id, section: q.section, questionText: q.textEn, kind: "text", value, detail: "" };
+  });
+  return { answers, comments: buildCommentsFromQuestionnaire(questions, answers) };
+}
+
 const FIRST_NAMES = ["Murugan", "Lakshmi", "Senthil", "Kavitha", "Ramesh", "Meena", "Karthik", "Priya", "Arun", "Divya", "Selvi", "Ganesh", "Anitha", "Vijay", "Revathi", "Suresh", "Bhavani", "Prakash", "Nithya", "Manikandan", "Saranya", "Rajesh", "Deepa", "Saravanan", "Malathi"];
 const LAST_INITIALS = ["K", "S", "R", "M", "P", "V", "T", "N", "A", "G"];
 
@@ -187,11 +288,18 @@ function buildSubmission(index, daysBack) {
     overall === "positive" ? (random() < 0.6 ? 5 : 4) : overall === "negative" ? (random() < 0.45 ? 1 : 2) : 3;
 
   let englishText = issues.map((i) => i.issueSummary).join(". ") + ".";
+  const blocker = feedbackType === "new_joiner" && overall === "negative" && random() < 0.35;
   if (feedbackType === "relieving") {
     englishText = `Reason for leaving: ${pick(EXIT_REASONS)}. ${englishText}`;
   }
-  const comments =
+  let comments =
     mode === "voice" && random() < 0.5 ? `${pick(TAMIL_VOICE[overall === "positive" ? "positive" : "negative"])}. ${englishText}` : englishText;
+  // New-joiner and exit feedback are questionnaires: store the structured answers and use them as the text.
+  let questionnaire = { answers: [], comments: "" };
+  if (feedbackType !== "general") {
+    questionnaire = answersFor(feedbackType, overall === "negative" ? "negative" : "positive", blocker);
+    comments = questionnaire.comments;
+  }
 
   const topics = [...new Set(issues.map((i) => SERVICE_ISSUES[i.recommendedService].topic))];
 
@@ -207,10 +315,10 @@ function buildSubmission(index, daysBack) {
     lastWorkingDay: feedbackType === "relieving" ? isoDay(daysBefore(createdAt, Math.floor(random() * 5))) : "",
     department,
     service: issues.find((i) => i.recommendedService)?.recommendedService || "",
-    feedbackIssues: issues.map((i) => ({ ...i, suggestedAction: "", ticketId: null })),
-    rating,
+    feedbackIssues: issues.map((i) => ({ ...i, suggestedAction: "" })),
+    rating: blocker ? 1 : rating,
     comments,
-    status: "New",
+    answers: questionnaire.answers,
     source: "employee",
     submissionMode: mode,
     aiSentiment: overall,

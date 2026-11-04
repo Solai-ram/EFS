@@ -29,11 +29,88 @@ export const CATEGORICAL_PALETTE = [
  * contrast ≥ 3:1 on the card. The grey only "fails" the chroma floor, which is the point of a
  * neutral midpoint. Labels and icons still name each sentiment; colour never carries it alone.
  */
-export const SENTIMENT_COLORS = {
+export const SENTIMENT_COLORS: Record<"positive" | "neutral" | "negative", string> = {
   positive: "#2a78d6",
-  neutral: "#9a9890",
+  neutral: "#9BA8AB",
   negative: "#d03b3b",
-} as const;
+};
+
+/**
+ * The selected theme's own colours, for series that are not a polarity (bars, trend lines,
+ * sparklines, channel splits). Updated by applyThemeToChartPalette whenever the theme changes.
+ */
+export const THEME_CHART = {
+  primary: "#DC1A1F",
+  accent: "#F7A014",
+  /** Quiet warm grey for the "other" series. */
+  ink: "#6B5B57",
+};
+
+function hexToHsl(hex: string): [number, number, number] {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return [0, 0, 0.5];
+  const n = parseInt(m[1], 16);
+  const r = ((n >> 16) & 255) / 255;
+  const g = ((n >> 8) & 255) / 255;
+  const b = (n & 255) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  if (max === min) return [0, 0, l];
+  const d = max - min;
+  const sat = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  let h = 0;
+  if (max === r) h = (g - b) / d + (g < b ? 6 : 0);
+  else if (max === g) h = (b - r) / d + 2;
+  else h = (r - g) / d + 4;
+  return [h * 60, sat, l];
+}
+
+function hslToHex(h: number, s: number, l: number): string {
+  const a = s * Math.min(l, 1 - l);
+  const f = (k: number) => {
+    const t = (k + h / 30) % 12;
+    const c = l - a * Math.max(-1, Math.min(t - 3, 9 - t, 1));
+    return Math.round(255 * c)
+      .toString(16)
+      .padStart(2, "0");
+  };
+  return `#${f(0)}${f(8)}${f(4)}`;
+}
+
+/**
+ * Re-colour the charts from the selected theme.
+ *
+ * Positive and negative must stay easy to tell apart (including for colour-blind readers), so:
+ *  - red-ish themes (crimson, maroon): the theme red marks NEGATIVE and positive becomes teal;
+ *  - green-ish themes: positive becomes blue, because green next to red is the classic clash;
+ *  - every other theme (navy, slate, plum...): the theme colour marks POSITIVE and negative is red.
+ * The theme colour is kept within a mid lightness so it is readable as a chart fill.
+ */
+export function applyThemeToChartPalette(primary: string, accent: string): void {
+  THEME_CHART.primary = primary;
+  THEME_CHART.accent = accent;
+
+  const [h, sat, l] = hexToHsl(primary);
+  const readable = hslToHex(h, Math.max(sat, 0.35), Math.min(0.5, Math.max(0.36, l)));
+  const reddish = sat > 0.25 && (h >= 335 || h <= 25);
+  const greenish = sat > 0.25 && h > 75 && h < 175;
+
+  if (reddish) {
+    SENTIMENT_COLORS.negative = readable;
+    SENTIMENT_COLORS.positive = "#1f7a8c";
+  } else if (greenish) {
+    SENTIMENT_COLORS.positive = "#2a78d6";
+    SENTIMENT_COLORS.negative = "#d03b3b";
+  } else {
+    SENTIMENT_COLORS.positive = readable;
+    SENTIMENT_COLORS.negative = "#d03b3b";
+  }
+  SENTIMENT_COLORS.neutral = hslToHex(h, 0.08, 0.64);
+  THEME_CHART.ink = hslToHex(h, 0.1, 0.42);
+  // "New" tickets are informational, so they share the positive hue.
+  STATUS_COLORS.new = SENTIMENT_COLORS.positive;
+}
 
 /**
  * Stable colour per entity name — the same department keeps the same colour
@@ -103,4 +180,4 @@ export const STATUS_COLORS = {
   new: "#2a78d6",
   inProgress: "#fab219",
   resolved: "#0ca30c",
-} as const;
+};

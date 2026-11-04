@@ -28,62 +28,24 @@ export const DEFAULT_ROLES = [
     sortOrder: 10,
   },
   {
-    key: "management",
-    label: "Management",
-    description:
-      "Read-only executive view: dashboards, scorecards and summary reports. Cannot change any record.",
-    capabilities: [C.FEEDBACK_READ_ALL, C.INSIGHTS_VIEW, C.INSIGHTS_OVERVIEW, C.REPORTS_GENERATE],
-    isSystem: true,
-    isProtected: false,
-    sortOrder: 20,
-  },
-  {
     key: "admin",
     label: "Admin",
     description:
-      "Runs the system day to day: assigns tickets to department heads, manages users, departments, services and settings.",
+      "Runs the system day to day: reads all employee feedback and reports, and manages users, questions and settings.",
     capabilities: [
       C.FEEDBACK_READ_ALL,
-      C.FEEDBACK_ASSIGN,
       C.FEEDBACK_DELETE,
       C.INSIGHTS_VIEW,
       C.INSIGHTS_OVERVIEW,
       C.REPORTS_GENERATE,
       C.USERS_MANAGE,
-      C.DEPARTMENTS_MANAGE,
-      C.SERVICES_MANAGE,
       C.SETTINGS_MANAGE,
       C.BRANDING_MANAGE,
       C.MAINTENANCE_RUN,
     ],
     isSystem: true,
     isProtected: false,
-    sortOrder: 30,
-  },
-  {
-    key: "hod",
-    label: "Head of Department",
-    description:
-      "Owns the tickets assigned to their department: resolves them and records the CAPA.",
-    capabilities: [
-      C.FEEDBACK_READ_ASSIGNED,
-      C.FEEDBACK_RESOLVE,
-      C.CAPA_WRITE,
-      C.INSIGHTS_VIEW,
-      C.INSIGHTS_OVERVIEW,
-    ],
-    isSystem: true,
-    isProtected: false,
-    sortOrder: 40,
-  },
-  {
-    key: "staff",
-    label: "Staff",
-    description: "Submits feedback on behalf of employees and views the feedback log.",
-    capabilities: [C.FEEDBACK_READ_ALL, C.INSIGHTS_VIEW, C.INSIGHTS_OVERVIEW],
-    isSystem: true,
-    isProtected: false,
-    sortOrder: 50,
+    sortOrder: 20,
   },
 ];
 
@@ -96,8 +58,6 @@ const CAPABILITY_MIGRATIONS = [
   // The overview screen used to be implied by insights.view; keep it visible
   // for roles that could already see it.
   { id: "insights.overview.v1", grant: C.INSIGHTS_OVERVIEW, ifHolds: C.INSIGHTS_VIEW },
-  // Every HOD sees the overview screen.
-  { id: "hod.overview.v1", role: "hod", grant: [C.INSIGHTS_VIEW, C.INSIGHTS_OVERVIEW] },
 ];
 
 async function applyCapabilityMigrations() {
@@ -146,6 +106,9 @@ export async function ensureRolesSeeded() {
       appliedMigrations: CAPABILITY_MIGRATIONS.map((migration) => migration.id),
     });
   }
+  // Permissions that no longer exist (ticket resolving, assigning, CAPA, module switches) are removed
+  // from stored roles so the permissions screen can always save.
+  await Role.updateMany({}, { $pull: { capabilities: { $nin: ALL_CAPABILITIES } } });
   await applyCapabilityMigrations();
 }
 

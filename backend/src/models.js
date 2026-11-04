@@ -74,7 +74,8 @@ const feedbackSchema = new mongoose.Schema(
     // set() runs on every assignment (create, insertMany, doc.field=) so no
     // write path — including future ones — can persist HTML/markup here.
     employeeName: { type: String, required: true, trim: true, set: sanitizeEmployeeName },
-    employeeId: { type: String, required: true, trim: true, index: true },
+    // Required for new joiner and relieving feedback (checked in the submit handler); optional for general.
+    employeeId: { type: String, default: "", trim: true, index: true },
     /** new_joiner = 15-day stay interview, relieving = exit interview, general = open feedback. */
     feedbackType: {
       type: String,
@@ -314,12 +315,56 @@ summaryReportSchema.index(
   { unique: true }
 );
 
+/** Admin-edited new-joiner / exit-interview questions. One document per feedback type. */
+const questionnaireConfigSchema = new mongoose.Schema(
+  {
+    feedbackType: { type: String, enum: ["new_joiner", "relieving"], required: true, unique: true },
+    /** Empty = use the built-in intro for that language. */
+    introEn: { type: String, default: "", trim: true },
+    introTa: { type: String, default: "", trim: true },
+    questions: {
+      type: [
+        {
+          id: { type: String, required: true },
+          section: { type: String, default: "" },
+          textEn: { type: String, required: true, trim: true },
+          textTa: { type: String, required: true, trim: true },
+          required: { type: Boolean, default: false },
+          blocker: { type: Boolean, default: false },
+        },
+      ],
+      default: [],
+    },
+  },
+  { timestamps: true }
+);
+
+/**
+ * Who did what. Append-only: the API has no route that edits or deletes a row.
+ * Only the action, the target and a short summary are kept, never the feedback text itself.
+ */
+const auditLogSchema = new mongoose.Schema({
+  at: { type: Date, default: Date.now, index: true },
+  actorId: { type: String, default: "" },
+  actorUsername: { type: String, default: "", index: true },
+  actorRole: { type: String, default: "" },
+  action: { type: String, required: true, index: true },
+  targetType: { type: String, default: "" },
+  targetId: { type: String, default: "" },
+  summary: { type: String, default: "" },
+  meta: { type: mongoose.Schema.Types.Mixed, default: {} },
+  ip: { type: String, default: "" },
+  success: { type: Boolean, default: true },
+});
+
+export const AuditLog = mongoose.model("AuditLog", auditLogSchema);
 export const Role = mongoose.model("Role", roleSchema);
 export const Department = mongoose.model("Department", departmentSchema);
 export const RoutingService = mongoose.model("RoutingService", routingServiceSchema);
 export const User = mongoose.model("User", userSchema);
 export const Feedback = mongoose.model("Feedback", feedbackSchema);
 export const Branding = mongoose.model("Branding", brandingSchema);
+export const QuestionnaireConfig = mongoose.model("QuestionnaireConfig", questionnaireConfigSchema);
 export const SummaryReport = mongoose.model("SummaryReport", summaryReportSchema);
 export const BotConversationConfig = mongoose.model(
   "BotConversationConfig",

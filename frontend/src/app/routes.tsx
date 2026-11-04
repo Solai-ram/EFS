@@ -4,7 +4,6 @@ import { LoginPage } from "./components/LoginPage";
 import {
   AdminGuard,
   RequireCapability,
-  RequireTicketing,
   StaffGuard,
 } from "./components/RouteGuards";
 
@@ -33,13 +32,8 @@ export const router = createBrowserRouter([
           Component: (await import("./components/FeedbackForm")).FeedbackForm,
         }),
       },
-      {
-        path: "feedback/bot",
-        lazy: async () => ({
-          Component: (await import("./components/BotConversationFeedback"))
-            .BotConversationFeedback,
-        }),
-      },
+      // The AI voice guide is only for new joiner and relieving feedback now (inside the form).
+      { path: "feedback/bot", element: <Navigate to="/feedback/general" replace /> },
       { path: "feedback/review", element: <Navigate to="/feedback/give" replace /> },
       {
         path: "feedback",
@@ -78,35 +72,9 @@ export const router = createBrowserRouter([
       {
         Component: StaffGuard,
         children: [
-          {
-            path: "staff",
-            lazy: async () => ({
-              Component: (await import("./components/Dashboard")).Dashboard,
-            }),
-          },
-          {
-            path: "dashboard",
-            lazy: async () => ({
-              Component: (await import("./components/Dashboard")).Dashboard,
-            }),
-          },
-          {
-            Component: RequireTicketing,
-            children: [
-              {
-                path: "ticket/:id",
-                lazy: async () => ({
-                  Component: (await import("./components/TicketDetail")).TicketDetail,
-                }),
-              },
-              {
-                path: "ticket/:id/delete",
-                lazy: async () => ({
-                  Component: (await import("./components/TicketDetail")).TicketDetail,
-                }),
-              },
-            ],
-          },
+          // The old HOD / staff queue is gone: Admins work from the admin console.
+          { path: "staff", element: <Navigate to="/admin" replace /> },
+          { path: "dashboard", element: <Navigate to="/admin" replace /> },
           // HODs used to land here; the Dashboard now limits their data to their departments.
           { path: "hod/overview", element: <Navigate to="/insights" replace /> },
           {
@@ -140,31 +108,8 @@ export const router = createBrowserRouter([
                   Component: (await import("./components/insights/SummaryReportRoute")).SummaryReportRoute,
                 }),
               },
-              {
-                path: "management",
-                lazy: async () => ({
-                  Component: (await import("./components/insights/InsightsHub")).InsightsHub,
-                }),
-                children: [
-                  { index: true, element: <Navigate to="/insights" replace /> },
-                  { path: "overview", element: <Navigate to="/insights" replace /> },
-                  { path: "submissions", element: <Navigate to="/insights" replace /> },
-                  { path: "sentiment", element: <Navigate to="/insights" replace /> },
-                  { path: "summary-report", element: <Navigate to="/insights/reports" replace /> },
-                  {
-                    Component: RequireTicketing,
-                    children: [
-                      {
-                        path: "tickets",
-                        lazy: async () => ({
-                          Component: (await import("./components/insights/TicketsTrendsRoute"))
-                            .TicketsTrendsRoute,
-                        }),
-                      },
-                    ],
-                  },
-                ],
-              },
+              { path: "management", element: <Navigate to="/insights" replace /> },
+              { path: "management/*", element: <Navigate to="/insights" replace /> },
             ],
           },
           { path: "analytics", element: <Navigate to="/insights" replace /> },
@@ -179,31 +124,8 @@ export const router = createBrowserRouter([
       {
         Component: AdminGuard,
         children: [
-          {
-            path: "admin/management-overview",
-            lazy: async () => ({
-              Component: (await import("./components/insights/InsightsHub")).InsightsHub,
-            }),
-            children: [
-              { index: true, element: <Navigate to="/admin" replace /> },
-              { path: "overview", element: <Navigate to="/admin" replace /> },
-              { path: "submissions", element: <Navigate to="/admin" replace /> },
-              { path: "sentiment", element: <Navigate to="/admin" replace /> },
-              { path: "summary-report", element: <Navigate to="/admin/reports" replace /> },
-              {
-                Component: RequireTicketing,
-                children: [
-                  {
-                    path: "tickets",
-                    lazy: async () => ({
-                      Component: (await import("./components/insights/TicketsTrendsRoute"))
-                        .TicketsTrendsRoute,
-                    }),
-                  },
-                ],
-              },
-            ],
-          },
+          { path: "admin/management-overview", element: <Navigate to="/admin" replace /> },
+          { path: "admin/management-overview/*", element: <Navigate to="/admin" replace /> },
           { path: "admin/insights", element: <Navigate to="/admin" replace /> },
           { path: "admin/analytics", element: <Navigate to="/admin" replace /> },
           {
@@ -238,26 +160,16 @@ export const router = createBrowserRouter([
               Component: (await import("./components/AdminRolesPage")).AdminRolesPage,
             }),
           },
+          {
+            path: "admin/audit",
+            lazy: async () => ({
+              Component: (await import("./components/AdminAuditLogPage")).AdminAuditLogPage,
+            }),
+          },
           { path: "admin/usercreation", element: <Navigate to="/admin/users" replace /> },
           { path: "usercreation", element: <Navigate to="/admin/users" replace /> },
           { path: "manage/access", element: <Navigate to="/admin/users" replace /> },
-          {
-            Component: RequireTicketing,
-            children: [
-              {
-                path: "admin/tickets",
-                lazy: async () => ({
-                  Component: (await import("./components/AdminTicketsPage")).AdminTicketsPage,
-                }),
-              },
-              {
-                path: "admin/tickets/delete",
-                lazy: async () => ({
-                  Component: (await import("./components/AdminTicketsPage")).AdminTicketsPage,
-                }),
-              },
-            ],
-          },
+          { path: "admin/tickets", element: <Navigate to="/admin/feedback" replace /> },
           {
             path: "admin/settings",
             lazy: async () => ({

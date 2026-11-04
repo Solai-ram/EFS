@@ -15,9 +15,9 @@ export function EmployeeCard({
   children: ReactNode;
 }) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-gray-200/80 bg-white shadow-[0_1px_2px_rgb(74_13_31/0.04),0_12px_32px_-12px_rgb(74_13_31/0.12)]">
+    <div className="overflow-hidden rounded-2xl border border-gray-200/80 bg-white shadow-[0_1px_2px_rgb(24_18_18/0.04),0_12px_32px_-12px_rgb(24_18_18/0.12)]">
       <div className="border-b border-gray-100 px-6 pb-5 pt-6 md:px-10 md:pt-8">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8A6A10]">{kicker}</p>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9A5B00]">{kicker}</p>
         <h2 className="mt-1.5 text-2xl font-semibold tracking-tight text-gray-900 md:text-[1.75rem]">{title}</h2>
         {subtitle ? <p className="mt-1.5 text-sm leading-relaxed text-gray-500 md:text-[15px]">{subtitle}</p> : null}
       </div>
@@ -93,7 +93,7 @@ export function PrimaryAction({
       {...props}
       className={`flex h-14 w-full items-center justify-center gap-2 rounded-xl text-base font-semibold transition-all md:text-lg ${
         enabled
-          ? "text-white shadow-[0_8px_20px_-8px_rgb(74_13_31/0.45)] hover:brightness-110 active:translate-y-px"
+          ? "text-white shadow-[0_8px_20px_-8px_rgb(24_18_18/0.45)] hover:brightness-110 active:translate-y-px"
           : "cursor-not-allowed border border-gray-200 bg-gray-100 text-gray-400"
       } ${className}`}
       style={enabled ? { backgroundColor: primaryColor } : undefined}

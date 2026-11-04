@@ -29,22 +29,10 @@ import {
   type AnswerMap,
 } from "../lib/useQuestionnaire";
 import { EmployeeCard, EmployeeFooter, PrimaryAction, StatusNote, StepHeading } from "./EmployeeCard";
-import { CheckCircle2, Languages } from "lucide-react";
-import rating5 from "./image/rating/rating-5.png";
-import rating4 from "./image/rating/rating-4.png";
-import rating3 from "./image/rating/rating-3.png";
-import rating2 from "./image/rating/rating-2.png";
-import rating1 from "./image/rating/rating-1.png";
+import { ChevronRight, Languages } from "lucide-react";
 
 type InputKind = "voice" | "type";
 
-const emotions = [
-  { id: 5, image: rating5, label: "Excellent", prompt: "What do you like most about working here?" },
-  { id: 4, image: rating4, label: "Good", prompt: "What is going well?" },
-  { id: 3, image: rating3, label: "Okay", prompt: "How can we improve?" },
-  { id: 2, image: rating2, label: "Poor", prompt: "What went wrong?" },
-  { id: 1, image: rating1, label: "Very Poor", prompt: "What went wrong?" },
-];
 
 export function FeedbackForm() {
   const navigate = useNavigate();
@@ -67,6 +55,8 @@ export function FeedbackForm() {
   const [useGuide, setUseGuide] = useState(true);
   // True once the guide has asked every question; until then Remark and Submit stay hidden.
   const [guideDone, setGuideDone] = useState(false);
+  // True once the AI voice guide has started asking; the helper note above the questions is hidden then.
+  const [guideStarted, setGuideStarted] = useState(false);
   // Asked first for new joiner and relieving; the questions, voice and labels follow this choice.
   const [lang, setLang] = useState<QuestionnaireLanguage | null>(null);
   const [hoverLang, setHoverLang] = useState<QuestionnaireLanguage | null>(null);
@@ -77,7 +67,7 @@ export function FeedbackForm() {
   const [submitPhase, setSubmitPhase] = useState<"idle" | "text" | "voice">("idle");
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [transcriptionPending, setTranscriptionPending] = useState(false);
-  const [primaryColor, setPrimaryColor] = useState("#8B1538");
+  const [primaryColor, setPrimaryColor] = useState("#DC1A1F");
   const prevModeBucketRef = useRef<string | null>(null);
   const outboxIdRef = useRef<string | null>(null);
   const draftCommentsRef = useRef("");
@@ -107,7 +97,6 @@ export function FeedbackForm() {
 
   const internalSubmit = isInternalUser(getSession());
 
-  const selectedEmotionData = emotions.find((e) => e.id === selectedEmotion);
 
   useEffect(() => {
     void loadBrandingSettings().then((current) => {
@@ -196,8 +185,8 @@ export function FeedbackForm() {
         return;
       }
     } else if (inputKind === "type") {
-      if (!selectedEmotion) {
-        setSubmitError("Please choose how your experience felt.");
+      if (!comments.trim()) {
+        setSubmitError("Please write your feedback first.");
         return;
       }
     } else {
@@ -228,10 +217,10 @@ export function FeedbackForm() {
       // For questionnaires the server derives the stored rating from the answers.
       const submitRating = isQuestionnaire
         ? estimateRating(questions, answers)
-        : (selectedEmotion as number);
+        : (selectedEmotion ?? 0); // 0 = typed free text: the server reads it and rates it
       const payload = {
         ...identity.getSubmitFields(),
-        rating: submitRating,
+        rating: submitRating || 3,
         comments: isQuestionnaire ? "" : comments.trim(),
         ...(isQuestionnaire ? { answers: toPayloadAnswers(questions, answers) } : {}),
         ...(remark.trim() ? { staffRemarks: remark.trim() } : {}),
@@ -244,7 +233,7 @@ export function FeedbackForm() {
         payload,
         audioBlob: inputKind === "voice" ? voiceBlobRef.current ?? voiceRecordingBlob : null,
         thankYouState: {
-          rating: submitRating,
+          rating: submitRating || 3,
           fromStaffSession: internalSubmit,
         },
       });
@@ -272,7 +261,7 @@ export function FeedbackForm() {
 
       navigate("/thank-you", {
         state: {
-          rating: submitRating,
+          rating: submitRating || 3,
           fromStaffSession: internalSubmit,
           staffRemarks: remark.trim() || undefined,
           aiSummary: typeof created.aiSummary === "string" ? created.aiSummary : undefined,
@@ -281,6 +270,17 @@ export function FeedbackForm() {
           aiTopics: Array.isArray(created.aiTopics) ? (created.aiTopics as string[]) : undefined,
           voiceUploadWarning,
           offlineQueued,
+          // Exit interviews unlock the relieving letter on the thank-you page.
+          relievingLetter:
+            feedbackType === "relieving"
+              ? {
+                  employeeName: identity.getSubmitFields().employeeName,
+                  employeeId: identity.getSubmitFields().employeeId,
+                  department: identity.getSubmitFields().department ?? "",
+                  dateOfJoining: identity.getSubmitFields().dateOfJoining ?? "",
+                  lastWorkingDay: identity.getSubmitFields().lastWorkingDay ?? "",
+                }
+              : undefined,
         },
       });
     } catch (err) {
@@ -293,7 +293,7 @@ export function FeedbackForm() {
 
   const canSubmitType = isQuestionnaire
     ? questions.length > 0 && !firstMissingQuestion(questions, answers) && identity.identityReady
-    : Boolean(selectedEmotion && identity.identityReady);
+    : Boolean(comments.trim() && identity.identityReady);
   const canSubmitVoice = Boolean(
     voiceReady && selectedEmotion != null && identity.identityReady && !transcriptionPending
   );
@@ -308,7 +308,7 @@ export function FeedbackForm() {
     ? questions.length > 0 && !guideActive
     : inputKind === "voice"
       ? voiceReady
-      : Boolean(selectedEmotion);
+      : Boolean(comments.trim());
 
   const linkClass = "inline text-left font-semibold underline decoration-1 underline-offset-2 hover:decoration-2";
 
@@ -320,50 +320,79 @@ export function FeedbackForm() {
           title={feedbackType === "new_joiner" ? "New joiner stay interview" : "Exit interview"}
           subtitle="Questions in English or Tamil · பதில் குரலில்"
         >
-          <div className="space-y-8 py-4 text-center md:py-8">
-            <div
-              className="inline-flex items-center gap-2 rounded-full px-5 py-3 text-white"
-              style={{ backgroundColor: primaryColor }}
-            >
-              <Languages size={20} />
-              <span>Choose your language · மொழியைத் தேர்ந்தெடுக்கவும்</span>
+          <div className="space-y-7 py-2 md:py-6">
+            <div className="text-center">
+              <div
+                className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-full"
+                style={{ backgroundColor: `${primaryColor}14`, color: primaryColor }}
+              >
+                <Languages size={26} />
+              </div>
+              <h3 className="text-xl font-semibold tracking-tight text-gray-900 md:text-2xl">Choose your language</h3>
+              <p className="mt-1 text-base text-gray-500" lang="ta">
+                மொழியைத் தேர்ந்தெடுக்கவும்
+              </p>
             </div>
 
-            <div className="flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2" role="group" aria-label="Language">
               {(
                 [
-                  { id: "en", label: "English", sub: "Continue in English" },
-                  { id: "ta", label: "தமிழ்", sub: "தமிழில் தொடரவும்" },
+                  { id: "en", glyph: "A", label: "English", sub: "Continue in English" },
+                  { id: "ta", glyph: "அ", label: "தமிழ்", sub: "தமிழில் தொடரவும்" },
                 ] as const
-              ).map((option) => (
-                <button
-                  key={option.id}
-                  type="button"
-                  onClick={() => setLang(option.id)}
-                  className="flex min-w-[14rem] flex-col items-center rounded-full border-2 px-10 py-4 transition-all hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 active:translate-y-0"
-                  style={{
-                    borderColor: primaryColor,
-                    backgroundColor: hoverLang === option.id ? primaryColor : "#FFFFFF",
-                    color: hoverLang === option.id ? "#FFFFFF" : primaryColor,
-                  }}
-                  onMouseEnter={() => setHoverLang(option.id)}
-                  onMouseLeave={() => setHoverLang(null)}
-                  onFocus={() => setHoverLang(option.id)}
-                  onBlur={() => setHoverLang(null)}
-                >
-                  <span className="text-xl font-bold leading-tight" lang={option.id}>
-                    {option.label}
-                  </span>
-                  <span className="mt-0.5 text-sm opacity-80" lang={option.id}>
-                    {option.sub}
-                  </span>
-                </button>
-              ))}
+              ).map((option) => {
+                const active = hoverLang === option.id;
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => setLang(option.id)}
+                    onMouseEnter={() => setHoverLang(option.id)}
+                    onMouseLeave={() => setHoverLang(null)}
+                    onFocus={() => setHoverLang(option.id)}
+                    onBlur={() => setHoverLang(null)}
+                    className="group flex items-center gap-4 rounded-2xl border bg-white p-5 text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 active:translate-y-0 md:p-6"
+                    style={{
+                      borderColor: active ? primaryColor : "#ECDFCC",
+                      boxShadow: active ? `0 0 0 3px ${primaryColor}1F` : undefined,
+                    }}
+                  >
+                    <span
+                      className="grid h-14 w-14 shrink-0 place-items-center rounded-full text-2xl font-bold transition-colors duration-200"
+                      style={{
+                        backgroundColor: active ? primaryColor : `${primaryColor}14`,
+                        color: active ? "#FFFFFF" : primaryColor,
+                      }}
+                      aria-hidden="true"
+                      lang={option.id}
+                    >
+                      {option.glyph}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-lg font-semibold leading-tight text-gray-900" lang={option.id}>
+                        {option.label}
+                      </span>
+                      <span className="mt-0.5 block text-sm text-gray-500" lang={option.id}>
+                        {option.sub}
+                      </span>
+                    </span>
+                    <ChevronRight
+                      size={20}
+                      className="shrink-0 text-gray-300 transition-all duration-200 group-hover:translate-x-0.5"
+                      style={{ color: active ? primaryColor : undefined }}
+                      aria-hidden="true"
+                    />
+                  </button>
+                );
+              })}
             </div>
 
-            <p className="mx-auto max-w-md text-sm leading-relaxed text-gray-500">
+            <p className="mx-auto max-w-md text-center text-sm leading-relaxed text-gray-500">
               The questions, the AI voice guide and your spoken answers will use this language. You can change it
               later.
+              <span className="mt-1 block" lang="ta">
+                கேள்விகள், குரல் வழிகாட்டி மற்றும் உங்கள் பதில்கள் இந்த மொழியிலேயே இருக்கும்.
+              </span>
             </p>
           </div>
         </EmployeeCard>
@@ -381,101 +410,106 @@ export function FeedbackForm() {
             : feedbackType === "relieving"
               ? "Relieving · Exit interview"
               : inputKind === "voice"
-                ? "Voice feedback"
-                : "Rate & share"
+                ? "Speak freely"
+                : "Type freely"
         }
         title={
           feedbackType === "new_joiner"
             ? "How is your first month going?"
             : feedbackType === "relieving"
               ? "Before you go, tell us about your time here"
-              : "How is your experience working here?"
+              : "What would you like to tell us?"
         }
         subtitle={
           feedbackType === "new_joiner"
             ? "A quick check-in so we can fix problems early. Your answers go to HR."
             : feedbackType === "relieving"
-              ? "Your honest views help us improve employment practices. Thank you for your contribution."
+              ? "Your honest views help us improve employment practices. Finish the interview to view your relieving letter."
               : inputKind === "voice"
-                ? "Tell us about your experience in your own words — Tamil, Hindi or English."
-                : "Your feedback reaches the team that can act on it."
+                ? "Say it in your own words — Tamil, Hindi or English."
+                : "Write it in your own words, in any language. Your feedback reaches the team that can act on it."
         }
       >
+        {isQuestionnaire && guideStarted ? null : (
         <section className="mb-8">
           <StepHeading step={1} title="Your details" primaryColor={primaryColor} />
           <EmployeeIdentitySection identity={identity} primaryColor={primaryColor} />
-          <StatusNote
-            primaryColor={primaryColor}
-            ready={inputKind === "voice" && identity.identityReady}
-          >
-            {isQuestionnaire ? (
-              <>
-                HR staff can fill this form on behalf of an employee who needs help.{" "}
-                <button
-                  type="button"
-                  onClick={() => setLang(null)}
-                  className={linkClass}
-                  style={{ color: primaryColor }}
-                >
-                  Change language · மொழியை மாற்று
-                </button>
-                . Prefer a different kind of feedback?{" "}
-                <button
-                  type="button"
-                  onClick={() => navigate("/feedback")}
-                  className={linkClass}
-                  style={{ color: primaryColor }}
-                >
-                  Go back
-                </button>
-              </>
-            ) : inputKind === "voice" ? (
-              identity.identityReady ? (
-                <>Ready to listen, {identity.resolvedEmployeeName}. Tap below to share your experience.</>
+          {isQuestionnaire && guideStarted ? null : (
+            <StatusNote
+              primaryColor={primaryColor}
+              ready={inputKind === "voice" && identity.identityReady}
+            >
+              {isQuestionnaire ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setLang(null)}
+                    className={linkClass}
+                    style={{ color: primaryColor }}
+                  >
+                    Change language · மொழியை மாற்று
+                  </button>
+                  . Prefer a different kind of feedback?{" "}
+                  <button
+                    type="button"
+                    onClick={() => navigate("/feedback")}
+                    className={linkClass}
+                    style={{ color: primaryColor }}
+                  >
+                    Go back
+                  </button>
+                </>
+              ) : inputKind === "voice" ? (
+                identity.identityReady ? (
+                  <>Ready to listen{identity.resolvedEmployeeName ? `, ${identity.resolvedEmployeeName}` : ""}. Tap below to share your experience.</>
+                ) : (
+                  "Please choose your department before speaking."
+                )
               ) : (
-                "Please fill in your name, employee ID and department before speaking."
-              )
-            ) : (
-              <>
-                HR staff can fill this form on behalf of an employee who needs help. Prefer to speak?{" "}
-                <button
-                  type="button"
-                  onClick={() => navigate("/feedback/give?mode=voice&type=general", { replace: true })}
-                  className={linkClass}
-                  style={{ color: primaryColor }}
-                >
-                  Use voice instead
-                </button>{" "}
-                (Tamil, Hindi &amp; English). Or{" "}
-                <button
-                  type="button"
-                  onClick={() => navigate("/feedback")}
-                  className={linkClass}
-                  style={{ color: primaryColor }}
-                >
-                  pick again on the previous screen
-                </button>
-              </>
-            )}
-          </StatusNote>
+                <>
+                  Prefer to speak?{" "}
+                  <button
+                    type="button"
+                    onClick={() => navigate("/feedback/give?mode=voice&type=general", { replace: true })}
+                    className={linkClass}
+                    style={{ color: primaryColor }}
+                  >
+                    Use voice instead
+                  </button>{" "}
+                  (Tamil, Hindi &amp; English). Or{" "}
+                  <button
+                    type="button"
+                    onClick={() => navigate("/feedback")}
+                    className={linkClass}
+                    style={{ color: primaryColor }}
+                  >
+                    pick again on the previous screen
+                  </button>
+                </>
+              )}
+            </StatusNote>
+          )}
         </section>
+        )}
 
         {isQuestionnaire && (
           <section className="mb-8">
+            {guideStarted ? null : (
             <StepHeading
               step={2}
               title={feedbackType === "new_joiner" ? "Your first weeks" : "Your exit interview"}
               hint={
                 lang === "ta"
                   ? useGuide
-                    ? "AI குரல் வழிகாட்டி ஒவ்வொரு கேள்வியையும் கேட்கும். பேசி அல்லது தொட்டு பதில் சொல்லுங்கள்."
+                    ? "AI குரல் வழிகாட்டி ஒவ்வொரு கேள்வியையும் கேட்கும். பேசி பதில் சொல்லுங்கள்."
                     : "* குறியிட்ட கேள்விகளுக்கு பதில் அவசியம்."
                   : useGuide
-                    ? "The AI Voice Guide asks each question aloud. Speak or tap your answer."
+                    ? "The AI Voice Guide asks each question aloud. Speak your answer."
                     : "Fields marked * are required."
               }
               primaryColor={primaryColor}
             />
+            )}
             {questionsLoading && !questions.length ? (
               <p className="text-sm text-gray-500">Loading questions…</p>
             ) : questionsError && !questions.length ? (
@@ -492,6 +526,18 @@ export function FeedbackForm() {
                 lang={lang ?? "en"}
                 onSwitchToTyping={() => setUseGuide(false)}
                 onFinishedChange={setGuideDone}
+                onStartedChange={setGuideStarted}
+                letter={
+                  feedbackType === "relieving"
+                    ? {
+                        employeeName: identity.employeeName,
+                        employeeId: identity.employeeId,
+                        department: identity.department,
+                        dateOfJoining: identity.dateOfJoining,
+                        lastWorkingDay: identity.lastWorkingDay,
+                      }
+                    : undefined
+                }
                 canStart={identity.validateForSubmit() === null}
               />
             ) : (
@@ -544,91 +590,25 @@ export function FeedbackForm() {
           <section className="mb-8">
             <StepHeading
               step={2}
-              title="Rate your experience"
-              hint={
-                <>
-                  Choose how you felt, then{" "}
-                  <span className="font-medium text-gray-700">
-                    describe your experience in comments so your rating matches your words.
-                  </span>
-                </>
-              }
+              title="Your feedback"
+              hint="Write anything you want us to know: what is working, what is not, or an idea."
               primaryColor={primaryColor}
             />
-            <div className="grid grid-cols-5 gap-2 md:gap-3" role="radiogroup" aria-label="Rating">
-              {emotions.map((emotion) => {
-                const selected = selectedEmotion === emotion.id;
-                const dimmed = selectedEmotion != null && !selected;
-                return (
-                  <button
-                    key={emotion.id}
-                    type="button"
-                    role="radio"
-                    aria-checked={selected}
-                    onClick={() => setSelectedEmotion(emotion.id)}
-                    className="group relative flex min-h-[104px] flex-col items-center justify-center gap-2 rounded-xl border bg-white px-1 py-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md md:min-h-[128px] md:py-5"
-                    style={
-                      selected
-                        ? {
-                            borderColor: primaryColor,
-                            backgroundColor: `${primaryColor}0A`,
-                            boxShadow: `0 0 0 3px ${primaryColor}1F`,
-                          }
-                        : { borderColor: "#E8E1D9" }
-                    }
-                  >
-                    {selected ? (
-                      <CheckCircle2
-                        className="absolute right-1.5 top-1.5 h-4 w-4 md:right-2 md:top-2"
-                        style={{ color: primaryColor }}
-                      />
-                    ) : null}
-                    <img
-                      src={emotion.image}
-                      alt=""
-                      draggable={false}
-                      className={`h-11 w-11 select-none transition-all duration-200 md:h-14 md:w-14 ${
-                        selected
-                          ? "scale-110 drop-shadow-[0_6px_10px_rgb(0_0_0/0.15)]"
-                          : dimmed
-                            ? "opacity-45 grayscale group-hover:opacity-80 group-hover:grayscale-0"
-                            : "group-hover:scale-105"
-                      }`}
-                    />
-                    <span
-                      className={`text-center text-[11px] leading-tight md:text-sm ${
-                        selected ? "font-semibold" : "font-medium text-gray-600"
-                      }`}
-                      style={selected ? { color: primaryColor } : undefined}
-                    >
-                      {emotion.label}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {selectedEmotionData && (
-              <div className="mt-6 animate-in fade-in slide-in-from-top-2 duration-300">
-                <label className="mb-2 block text-sm font-semibold text-gray-800 md:text-base">
-                  {selectedEmotionData.prompt}
-                </label>
-                <textarea
-                  value={comments}
-                  onChange={(e) => setComments(e.target.value)}
-                  placeholder="Share your thoughts... (optional)"
-                  className="h-32 w-full resize-none rounded-xl border border-gray-300 bg-white px-4 py-3 text-base text-gray-900 outline-none transition placeholder:text-gray-400 md:h-36"
-                  onFocus={(e) => {
-                    e.currentTarget.style.borderColor = primaryColor;
-                    e.currentTarget.style.boxShadow = `0 0 0 4px ${primaryColor}1A`;
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.borderColor = "";
-                    e.currentTarget.style.boxShadow = "none";
-                  }}
-                />
-              </div>
-            )}
+            <textarea
+              value={comments}
+              onChange={(e) => setComments(e.target.value)}
+              placeholder="Type your feedback here…"
+              maxLength={4000}
+              className="h-44 w-full resize-none rounded-xl border border-gray-300 bg-white px-4 py-3 text-base text-gray-900 outline-none transition placeholder:text-gray-400 md:h-52"
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = primaryColor;
+                e.currentTarget.style.boxShadow = `0 0 0 4px ${primaryColor}1A`;
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = "";
+                e.currentTarget.style.boxShadow = "none";
+              }}
+            />
           </section>
         )}
 

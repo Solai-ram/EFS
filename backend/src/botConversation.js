@@ -3,6 +3,7 @@ import fs from "fs/promises";
 import { BotConversationConfig } from "./models.js";
 import { CAPABILITIES, requireCapability } from "./auth.js";
 import { uploadUrlForRel } from "./uploadAccess.js";
+import { recordAudit } from "./auditLog.js";
 import {
   AI_VOICE_FILES,
   DEFAULT_BOT_CONVERSATION,
@@ -143,8 +144,9 @@ export function aiSentimentOnly(value) {
   return value && ["positive", "neutral", "negative"].includes(value) ? value : null;
 }
 
-export function canOpenTicketForSentiment(sentiment) {
-  return sentiment === "negative" || sentiment === "neutral";
+/** HR feedback has no tickets, so nothing is ever opened for any sentiment. */
+export function canOpenTicketForSentiment(_sentiment) {
+  return false;
 }
 
 export function ensureIssueTicketIds(issues, { newTicketId }) {
@@ -239,6 +241,11 @@ export function registerBotConversationRoutes(app, { uploadsRoot, botAudioUpload
         { $set: updates },
         { new: true, runValidators: true }
       );
+      await recordAudit(req, {
+        action: "settings.updated",
+        targetType: "settings",
+        summary: "Edited the voice guide introduction or question list",
+      });
       return res.json(serializeBotConfig(updated));
     } catch (err) {
       return res.status(500).json({ message: "Failed to save bot conversation config" });

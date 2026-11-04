@@ -122,9 +122,7 @@ function toggleId(ids: string[], id: string): string[] {
 
 /** Fallback role list when the roles API is unavailable. */
 const FALLBACK_ROLES = [
-  { key: "staff", label: "Staff", description: "Submits feedback for employees and views the dashboard." },
-  { key: "hod", label: "HOD (Head of Department)", description: "Sees feedback for the departments and services they own." },
-  { key: "admin", label: "Admin", description: "Manages users, settings and all feedback." },
+  { key: "admin", label: "Admin", description: "Reads all employee feedback and reports, and manages users, questions and settings." },
 ];
 
 const ROLE_ICONS: Record<string, typeof UsersIcon> = {
@@ -269,7 +267,7 @@ export function AdminUsersPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [role, setRole] = useState<UserRole>("staff");
+  const [role, setRole] = useState<UserRole>("admin");
   // Roles are data now, so the picker is driven by the registry rather than a
   // hardcoded list — a role added in the RBAC screen shows up here.
   const [roleOptions, setRoleOptions] = useState<RoleRow[]>([]);
@@ -359,7 +357,7 @@ export function AdminUsersPage() {
     setUsername("");
     setPassword("");
     setShowPassword(false);
-    setRole("staff");
+    setRole("admin");
     setDepartmentId("");
     setHodDepartmentIds([]);
     setHodServiceIds([]);
@@ -495,7 +493,7 @@ export function AdminUsersPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-gray-900">Users</h1>
           <p className="mt-1 text-sm text-gray-500">
-            Manage admin, staff and HOD accounts, and the departments they own.
+            Manage the Admin and Super Admin accounts.
           </p>
         </div>
         <button

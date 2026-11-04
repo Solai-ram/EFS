@@ -28,8 +28,6 @@ import {
   getBrandingSettings,
   loadBrandingSettings,
   onBrandingSettingsChange,
-  useModuleEnabled,
-  useTicketingEnabled,
 } from "../lib/branding";
 import { FeedbackOutboxStatus } from "./FeedbackOutboxStatus";
 import { HodChangePasswordDialog } from "./HodChangePasswordDialog";
@@ -41,11 +39,11 @@ export function Layout() {
   const [branding, setBranding] = useState(() => getBrandingSettings());
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
-  const { enabled: ticketingEnabled } = useTicketingEnabled();
 
   const session = getSession();
   const capabilities = session?.capabilities ?? [];
   const canManageRoles = capabilities.includes("roles.manage");
+  const canViewAudit = capabilities.includes("audit.view");
   // Any role that can reach the admin console — no longer just the literal "admin".
   const isAdmin =
     capabilities.includes("users.manage") ||
@@ -104,13 +102,9 @@ export function Layout() {
     { label: "Reports", to: "/admin/reports", active: onReports },
     { label: "Users", to: "/admin/users", active: path === "/admin/users" },
     canManageRoles && { label: "Roles", to: "/admin/roles", active: path === "/admin/roles" },
-    ticketingEnabled && {
-      label: "Tickets",
-      to: "/admin/tickets",
-      active: path.startsWith("/admin/tickets"),
-    },
-    { label: "Bot Q&A", to: "/admin/bot-conversation", active: path === "/admin/bot-conversation" },
+    { label: "Questions", to: "/admin/bot-conversation", active: path === "/admin/bot-conversation" },
     { label: "Settings", to: "/admin/settings", active: path === "/admin/settings" },
+    canViewAudit && { label: "Audit log", to: "/admin/audit", active: path === "/admin/audit" },
   ].filter((tab): tab is { label: string; to: string; active: boolean } => Boolean(tab));
 
   const outlineButton = (active: boolean) =>
@@ -131,8 +125,9 @@ export function Layout() {
     Services: Layers,
     Users,
     Roles: ShieldCheck,
+    "Audit log": ClipboardList,
     Tickets: Ticket,
-    "Bot Q&A": Bot,
+    "Questions": Bot,
     Settings,
     "Employee View": ClipboardList,
     "Submit feedback": ClipboardList,
@@ -151,7 +146,6 @@ export function Layout() {
       ? [
           { label: "Feedback", to: "/insights/feedback", active: onFeedbackList },
           { label: "Dashboard", to: "/insights", active: onDashboard },
-          ...(ticketingEnabled ? [{ label: "My queue", to: "/dashboard", active: path === "/dashboard" }] : []),
         ]
       : [];
   } else {
@@ -167,7 +161,7 @@ export function Layout() {
     ];
   }
   const hasDrawer = showSectionNav && drawerLinks.length > 0;
-  const roleLabel: Record<string, string> = { superadmin: "Super admin", admin: "Admin", hod: "HOD", staff: "Staff" };
+  const roleLabel: Record<string, string> = { superadmin: "Super admin", admin: "Admin" };
 
   let sectionNav: React.ReactNode = null;
   if (isAdminShell) {
@@ -218,15 +212,6 @@ export function Layout() {
         <button type="button" onClick={() => navigate("/insights")} className={outlineButton(onDashboard)}>
           Dashboard
         </button>
-        {ticketingEnabled ? (
-          <button
-            type="button"
-            onClick={() => navigate("/dashboard")}
-            className={outlineButton(path === "/dashboard")}
-          >
-            My queue
-          </button>
-        ) : null}
       </div>
     ) : null;
   } else {
@@ -273,10 +258,7 @@ export function Layout() {
       <header className="bg-white shadow-sm border-b border-gray-200">
         <div
           aria-hidden="true"
-          className="h-1 w-full"
-          style={{
-            background: `linear-gradient(90deg, ${branding.primaryColor} 0%, ${branding.primaryColor} 55%, ${branding.accentColor} 100%)`,
-          }}
+          className="brand-stripe h-1 w-full"
         />
         <div className="w-full max-w-[min(100%,1600px)] mx-auto px-3 sm:px-5 py-3 lg:py-4">
           {/*
@@ -300,7 +282,7 @@ export function Layout() {
               <img
                 src={appLogo}
                 alt={`${HOSPITAL.shortName} feedback system`}
-                className="h-10 w-auto max-h-11 max-w-[min(140px,36vw)] shrink-0 object-contain sm:h-11 lg:h-12 lg:max-w-[180px]"
+                className="h-11 w-auto max-h-12 max-w-[min(140px,36vw)] shrink-0 object-contain sm:h-12 lg:h-14 lg:max-w-[180px]"
               />
               <div className="min-w-0">
                 <h1 className="truncate text-base font-bold tracking-tight text-gray-900 sm:text-lg lg:text-xl">
@@ -313,7 +295,7 @@ export function Layout() {
                     {HOSPITAL.name}
                   </span>
                 </h1>
-                <p className="truncate text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8A6A10] sm:text-[11px]">
+                <p className="truncate text-[10px] font-semibold uppercase tracking-[0.16em] text-[#9A5B00] sm:text-[11px]">
                   Employee Feedback System
                 </p>
               </div>
@@ -377,7 +359,7 @@ export function Layout() {
                 <SheetTitle className="truncate text-base font-bold tracking-tight text-gray-900">
                   {HOSPITAL.shortName}
                 </SheetTitle>
-                <SheetDescription className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#8A6A10]">
+                <SheetDescription className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#9A5B00]">
                   Employee Feedback System
                 </SheetDescription>
               </div>

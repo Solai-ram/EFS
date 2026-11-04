@@ -1,8 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  clearQuestionnaireOverride,
   deriveRating,
+  getCustomIntro,
+  getDefaultQuestionnaire,
   getQuestionnaire,
+  setQuestionnaireOverride,
   normalizeFeedbackType,
   processQuestionnaireAnswers,
 } from "./employeeQuestionnaires.js";
@@ -73,7 +77,7 @@ test("an optional question can be left empty", () => {
 test("answers keep the English question text and skip unanswered ones in the comments", () => {
   const out = processQuestionnaireAnswers("relieving", validAnswers("relieving"));
   assert.equal(out.ok, true);
-  assert.match(out.comments, /Q: Which reason \/ factor/);
+  assert.match(out.comments, /Q: Which reason or factor made you leave/);
   assert.match(out.comments, /A: answer to x_leaving_reason/);
   assert.doesNotMatch(out.comments, /Any Comments/);
 });
@@ -108,4 +112,31 @@ test("tamil answers are stored as written", () => {
 test("deriveRating is neutral unless there is a blocker", () => {
   assert.equal(deriveRating(""), 3);
   assert.equal(deriveRating("blocked"), 1);
+});
+
+test("an admin-edited questionnaire replaces the built-in one until it is reset", () => {
+  const edited = [
+    { id: "q_a", section: "pulse", kind: "text", required: true, textEn: "How is it?", textTa: "எப்படி?" },
+    { id: "q_b", section: "pulse", kind: "text", required: false, flag: "blocker", textEn: "Any blocker?", textTa: "தடை?" },
+  ];
+  setQuestionnaireOverride("new_joiner", { intro: { en: "Hi", ta: "" }, questions: edited });
+  try {
+    assert.equal(getQuestionnaire("new_joiner").length, 2);
+    assert.equal(getCustomIntro("new_joiner", "en"), "Hi");
+    assert.equal(getCustomIntro("new_joiner", "ta"), "");
+    // Validation now follows the edited questions.
+    assert.equal(processQuestionnaireAnswers("new_joiner", []).ok, false);
+    const ok = processQuestionnaireAnswers("new_joiner", [
+      { questionId: "q_a", value: "fine" },
+      { questionId: "q_b", value: "no laptop" },
+    ]);
+    assert.equal(ok.ok, true);
+    assert.equal(ok.rating, 1);
+    // The other type is untouched.
+    assert.ok(getQuestionnaire("relieving").length > 2);
+  } finally {
+    clearQuestionnaireOverride("new_joiner");
+  }
+  assert.equal(getQuestionnaire("new_joiner").length, getDefaultQuestionnaire("new_joiner").length);
+  assert.ok(getQuestionnaire("new_joiner").length > 2);
 });

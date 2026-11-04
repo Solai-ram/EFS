@@ -16,8 +16,8 @@ import { HOSPITAL } from "../lib/hospital";
 export function FeedbackMode() {
   const navigate = useNavigate();
   const session = getSession();
-  const [primaryColor, setPrimaryColor] = useState("#8B1538");
-  const [accentColor, setAccentColor] = useState("#C9A227");
+  const [primaryColor, setPrimaryColor] = useState("#DC1A1F");
+  const [accentColor, setAccentColor] = useState("#F7A014");
 
   useEffect(() => {
     void loadBrandingSettings().then((c) => {

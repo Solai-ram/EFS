@@ -9,6 +9,7 @@ import {
   onBrandingSettingsChange,
 } from "../lib/branding";
 import { hexWithAlpha, mixWithBlack } from "../lib/brandColor";
+import { RelievingLetterCard, type RelievingLetterData } from "./RelievingLetter";
 
 export function ThankYou() {
   const navigate = useNavigate();
@@ -31,10 +32,11 @@ export function ThankYou() {
   const staffRemarksSubmitted =
     typeof location.state?.staffRemarks === "string" ? location.state.staffRemarks : "";
   const offlineQueued = Boolean(location.state?.offlineQueued);
+  const relievingLetter = (location.state?.relievingLetter ?? null) as RelievingLetterData | null;
   const session = getSession();
   const isStaffSession = fromStaffSession || session?.role === "staff";
 
-  const [primaryColor, setPrimaryColor] = useState("#8B1538");
+  const [primaryColor, setPrimaryColor] = useState("#DC1A1F");
 
   useEffect(() => {
     void loadBrandingSettings().then((c) => setPrimaryColor(c.primaryColor));
@@ -42,8 +44,6 @@ export function ThankYou() {
       setPrimaryColor(getBrandingSettings().primaryColor);
     });
   }, []);
-
-  const showGoogleReviewsPrompt = aiSentiment !== "negative";
 
   const successGlow = hexWithAlpha(primaryColor, 0.42);
   const aiPanelBg = hexWithAlpha(primaryColor, 0.08);
@@ -70,8 +70,10 @@ export function ThankYou() {
         <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">Your feedback has been received</h2>
 
         <p className="text-lg md:text-xl text-gray-600 mb-9 leading-relaxed">
-          Thank you for helping us improve our care
+          Thank you for helping us make this a better place to work
         </p>
+
+        {relievingLetter ? <RelievingLetterCard data={relievingLetter} primaryColor={primaryColor} /> : null}
 
         {offlineQueued && (
           <p className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
@@ -125,14 +127,6 @@ export function ThankYou() {
           </div>
         )}
 
-        {showGoogleReviewsPrompt && (
-          <div className="rounded-2xl p-6 mb-8 border-2 border-solid" style={googleBand}>
-            <p className="text-base md:text-lg text-gray-800 leading-relaxed">
-              We&apos;re glad you had a positive experience! Would you consider sharing your feedback on Google
-              Reviews?
-            </p>
-          </div>
-        )}
 
         <button
           type="button"

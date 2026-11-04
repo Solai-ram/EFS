@@ -2,46 +2,46 @@
 
 :root {
   --font-size: 16px;
-  /* APH maroon & gold. Admin Settings override --primary, --brand-gold and --background at
+  /* APH logo theme: crimson and amber on warm white. Admin Settings override --primary, --brand-gold and --background at
      runtime (lib/branding.ts); components use the primary / brand-* / brand-gold tokens so they follow. */
-  --brand-gold: #c9a227;
-  --background: #faf7f2;
-  --foreground: #211d1a;
+  --brand-gold: #f7a014;
+  --background: #fff9f0;
+  --foreground: #231414;
   --card: #ffffff;
-  --card-foreground: #211d1a;
+  --card-foreground: #231414;
   --popover: #ffffff;
-  --popover-foreground: #211d1a;
-  --primary: #8b1538;
+  --popover-foreground: #231414;
+  --primary: #dc1a1f;
   --primary-foreground: #ffffff;
-  --secondary: #f3efea;
-  --secondary-foreground: #453e39;
-  --muted: #f3efea;
-  --muted-foreground: #736a62;
-  --accent: #f8f1e0;
-  --accent-foreground: #5e0f28;
+  --secondary: #f7eedf;
+  --secondary-foreground: #7a0f13;
+  --muted: #f7eedf;
+  --muted-foreground: #6b5b57;
+  --accent: #fcefd2;
+  --accent-foreground: #7a0f13;
   --destructive: #c62828;
   --destructive-foreground: #ffffff;
-  --border: #e8e1d9;
+  --border: #ecdfcc;
   --input: transparent;
-  --input-background: #faf7f2;
-  --switch-background: #d6cec5;
+  --input-background: #fffcf7;
+  --switch-background: #b9b5aa;
   --font-weight-medium: 500;
   --font-weight-normal: 400;
-  --ring: #a8325a;
+  --ring: #f7a014;
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
-  --radius: 0.75rem;
-  --sidebar: #fdfbf8;
-  --sidebar-foreground: #211d1a;
-  --sidebar-primary: #8b1538;
+  --radius: 0.875rem;
+  --sidebar: #fffcf7;
+  --sidebar-foreground: #231414;
+  --sidebar-primary: #dc1a1f;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #f8f1e0;
-  --sidebar-accent-foreground: #5e0f28;
-  --sidebar-border: #e8e1d9;
-  --sidebar-ring: #a8325a;
+  --sidebar-accent: #fcefd2;
+  --sidebar-accent-foreground: #7a0f13;
+  --sidebar-border: #ecdfcc;
+  --sidebar-ring: #f7a014;
 }
 
 .dark {
@@ -84,27 +84,39 @@
 @theme {
   --font-sans: "Plus Jakarta Sans Variable", "Plus Jakarta Sans", "Noto Sans Tamil", ui-sans-serif, system-ui, sans-serif;
 
-  /* Warm neutrals instead of Tailwind's cool grays. */
-  --color-gray-50: #faf8f5;
-  --color-gray-100: #f3efea;
-  --color-gray-200: #e8e1d9;
-  --color-gray-300: #d6cec5;
-  --color-gray-400: #a39a91;
-  --color-gray-500: #736a62;
-  --color-gray-600: #5a524c;
-  --color-gray-700: #453e39;
-  --color-gray-800: #2f2a26;
-  --color-gray-900: #211d1a;
-  --color-gray-950: #15120f;
+  /* Warm cream neutrals for surfaces and borders, warm brown-greys for text. */
+  --color-gray-50: #fffbf5;
+  --color-gray-100: #f7efe2;
+  --color-gray-200: #ecdfcc;
+  --color-gray-300: #dccdb6;
+  --color-gray-400: #aa9d94;
+  --color-gray-500: #6b5b57;
+  --color-gray-600: #574743;
+  --color-gray-700: #433331;
+  --color-gray-800: #2f2120;
+  --color-gray-900: #231414;
+  --color-gray-950: #150b0b;
 
 
-  /* Gold: the two AI-insight panels pair purple-50 with blue-50; make that a gold→rose wash. */
-  --color-purple-50: #fbf6e8;
+  /* The two AI-insight panels pair purple-50 with blue-50; make that a soft amber wash. */
+  --color-purple-50: #fdf3dd;
 
-  --shadow-sm: 0 1px 2px 0 rgb(74 13 31 / 0.05), 0 1px 3px 0 rgb(74 13 31 / 0.06);
-  --shadow-md: 0 4px 10px -2px rgb(74 13 31 / 0.08), 0 2px 4px -2px rgb(74 13 31 / 0.06);
-  --shadow-lg: 0 12px 24px -6px rgb(74 13 31 / 0.10), 0 4px 8px -4px rgb(74 13 31 / 0.06);
-  --shadow-xl: 0 20px 36px -10px rgb(74 13 31 / 0.14), 0 8px 14px -8px rgb(74 13 31 / 0.08);
+  --shadow-sm: 0 1px 2px 0 rgb(6 20 27 / 0.05), 0 1px 3px 0 rgb(6 20 27 / 0.06);
+  --shadow-md: 0 4px 10px -2px rgb(6 20 27 / 0.08), 0 2px 4px -2px rgb(6 20 27 / 0.06);
+  --shadow-lg: 0 12px 24px -6px rgb(6 20 27 / 0.10), 0 4px 8px -4px rgb(6 20 27 / 0.06);
+  --shadow-xl: 0 20px 36px -10px rgb(6 20 27 / 0.14), 0 8px 14px -8px rgb(6 20 27 / 0.08);
+}
+
+/* Decorative gradient line (header, login card). Follows whichever theme is selected:
+   darker primary, primary, the accent, then a lighter accent. */
+.brand-stripe {
+  background: linear-gradient(
+    90deg,
+    color-mix(in oklab, var(--primary) 78%, black) 0%,
+    var(--primary) 30%,
+    var(--brand-gold) 78%,
+    color-mix(in oklab, var(--brand-gold) 62%, white) 100%
+  );
 }
 
 @theme inline {
@@ -169,14 +181,17 @@
 
   body {
     @apply bg-background text-foreground;
+    /* A faint amber glow from the top edge gives the ivory page some depth. */
+    background-image: radial-gradient(1100px 380px at 50% -140px, rgb(247 160 20 / 0.10), transparent 70%);
+    background-repeat: no-repeat;
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
   ::selection {
-    background: #f6e2e8;
-    color: #5e0f28;
+    background: #fbd98b;
+    color: #7a0f13;
   }
 
   /**
@@ -256,4 +271,11 @@
 input:-webkit-autofill {
   animation-name: onAutoFillStart;
   animation-duration: 0.01s;
+}
+
+/* The relieving letter preview is view-only: it never prints with the page. */
+@media print {
+  iframe[title="Relieving letter"] {
+    display: none !important;
+  }
 }

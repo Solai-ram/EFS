@@ -66,9 +66,7 @@ const RoutingService =
 
 async function main() {
   const adminUsername = (process.env.SEED_ADMIN_USERNAME || "admin").trim().toLowerCase();
-  const staffUsername = (process.env.SEED_STAFF_USERNAME || "staff").trim().toLowerCase();
   const adminPassword = process.env.SEED_ADMIN_PASSWORD || "admin123";
-  const staffPassword = process.env.SEED_STAFF_PASSWORD || "staff123";
 
   await mongoose.connect(MONGODB_URI);
   const salt = await bcrypt.genSalt(10);
@@ -114,20 +112,6 @@ async function main() {
     console.log(`Created user: ${adminUsername} (admin)`);
   } else {
     console.log(`Skipped admin — "${adminUsername}" already exists`);
-  }
-
-  const existingStaff = await User.findOne({ username: staffUsername });
-  if (!existingStaff) {
-    await User.create({
-      username: staffUsername,
-      passwordHash: await bcrypt.hash(staffPassword, salt),
-      role: "staff",
-      departmentId: null,
-    });
-    usersCreated += 1;
-    console.log(`Created user: ${staffUsername} (staff)`);
-  } else {
-    console.log(`Skipped staff — "${staffUsername}" already exists`);
   }
 
   await mongoose.disconnect();

@@ -9,9 +9,9 @@ export const HOSPITAL = {
   nameTaLocative: "ஆதிபராசக்தி மருத்துவமனைகளில்",
   /** Default brand colours (admins can change them in Settings; "Reset" returns to these). */
   theme: {
-    primaryColor: "#8B1538",
-    accentColor: "#C9A227",
-    pageBackgroundColor: "#FAF7F2",
+    primaryColor: "#DC1A1F",
+    accentColor: "#F7A014",
+    pageBackgroundColor: "#FFF9F0",
   },
   /**
    * Departments seeded into a new database (`npm run seed`). Admins manage them afterwards.

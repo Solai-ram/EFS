@@ -11,11 +11,7 @@
 
 export const CAPABILITIES = {
   FEEDBACK_READ_ALL: "feedback.read.all",
-  FEEDBACK_READ_ASSIGNED: "feedback.read.assigned",
-  FEEDBACK_ASSIGN: "feedback.assign",
-  FEEDBACK_RESOLVE: "feedback.resolve",
   FEEDBACK_DELETE: "feedback.delete",
-  CAPA_WRITE: "capa.write",
   INSIGHTS_VIEW: "insights.view",
   INSIGHTS_OVERVIEW: "insights.overview",
   REPORTS_GENERATE: "reports.generate",
@@ -26,7 +22,7 @@ export const CAPABILITIES = {
   SETTINGS_MANAGE: "settings.manage",
   BRANDING_MANAGE: "branding.manage",
   MAINTENANCE_RUN: "maintenance.run",
-  FEATURES_MANAGE: "features.manage",
+  AUDIT_VIEW: "audit.view",
 };
 
 /** Every capability key, for validation and for the RBAC screen's matrix. */
@@ -35,13 +31,9 @@ export const ALL_CAPABILITIES = Object.values(CAPABILITIES);
 /** Human-readable metadata, grouped so the RBAC screen can render sections. */
 export const CAPABILITY_CATALOG = [
   {
-    group: "Feedback & tickets",
+    group: "Feedback",
     items: [
-      { key: CAPABILITIES.FEEDBACK_READ_ALL, label: "View all feedback", description: "Read every feedback row and ticket in the system." },
-      { key: CAPABILITIES.FEEDBACK_READ_ASSIGNED, label: "View assigned queue", description: "Read only tickets assigned to this user." },
-      { key: CAPABILITIES.FEEDBACK_ASSIGN, label: "Assign tickets", description: "Route tickets to a department head." },
-      { key: CAPABILITIES.FEEDBACK_RESOLVE, label: "Resolve tickets", description: "Change ticket status, including closing it." },
-      { key: CAPABILITIES.CAPA_WRITE, label: "Write CAPA", description: "Record root cause and corrective/preventive actions." },
+      { key: CAPABILITIES.FEEDBACK_READ_ALL, label: "View all feedback", description: "Read every feedback submission." },
       { key: CAPABILITIES.FEEDBACK_DELETE, label: "Delete feedback", description: "Permanently remove a feedback record." },
     ],
   },
@@ -58,12 +50,12 @@ export const CAPABILITY_CATALOG = [
     items: [
       { key: CAPABILITIES.USERS_MANAGE, label: "Manage users", description: "Create, edit and remove user accounts." },
       { key: CAPABILITIES.ROLES_MANAGE, label: "Manage roles", description: "Change which capabilities each role grants." },
-      { key: CAPABILITIES.DEPARTMENTS_MANAGE, label: "Manage departments", description: "Maintain the department catalog and HOD mapping." },
-      { key: CAPABILITIES.SERVICES_MANAGE, label: "Manage services", description: "Maintain the routing service catalog." },
+      { key: CAPABILITIES.DEPARTMENTS_MANAGE, label: "Manage departments", description: "Maintain the department list." },
+      { key: CAPABILITIES.SERVICES_MANAGE, label: "Manage services", description: "Maintain the service list." },
       { key: CAPABILITIES.SETTINGS_MANAGE, label: "Manage settings", description: "Edit system settings and the AI voice guide." },
       { key: CAPABILITIES.BRANDING_MANAGE, label: "Manage branding", description: "Change colours and logo." },
-      { key: CAPABILITIES.MAINTENANCE_RUN, label: "Run maintenance", description: "Execute repair and bulk ticket jobs." },
-      { key: CAPABILITIES.FEATURES_MANAGE, label: "Manage modules", description: "Turn whole modules, such as ticketing, on or off for everyone." },
+      { key: CAPABILITIES.MAINTENANCE_RUN, label: "Run maintenance", description: "Run maintenance and repair jobs." },
+      { key: CAPABILITIES.AUDIT_VIEW, label: "View audit log", description: "See who viewed, changed, deleted or exported what. Meant for the Super Admin only." },
     ],
   },
 ];

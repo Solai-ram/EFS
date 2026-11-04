@@ -17,8 +17,7 @@ import {
   ticketSummariesForDisplay,
 } from "../lib/feedbackDisplay";
 import { getAiSentimentBucket } from "../lib/sentiment";
-import { ticketDepartment, ticketService } from "../lib/ticketFilters";
-import { useTicketingEnabled } from "../lib/branding";
+import { ticketDepartment } from "../lib/ticketFilters";
 
 const ratingLabel: Record<number, string> = {
   1: "Very Poor",
@@ -116,7 +115,6 @@ export function EmployeeGroupedFeedbackTable({
 }: EmployeeGroupedFeedbackTableProps) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   // Ticket status is part of the ticketing workflow; the plain feedback list hides it when that is off.
-  const { enabled: ticketingEnabled } = useTicketingEnabled();
 
   const toggle = (key: string) => {
     setExpanded((prev) => {
@@ -165,7 +163,7 @@ export function EmployeeGroupedFeedbackTable({
             {variant === "tickets" ? (
               <>
                 <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-600">Employee / ticket</th>
-                <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-600">Dept / service</th>
+                <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-600">Department</th>
                 <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-600 hidden md:table-cell">
                   Sentiment
                 </th>
@@ -187,16 +185,10 @@ export function EmployeeGroupedFeedbackTable({
                 <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-600 hidden lg:table-cell">
                   Department
                 </th>
-                <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-600 hidden md:table-cell">
-                  Services
-                </th>
                 <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-600">AI</th>
                 <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-600 hidden sm:table-cell">
                   Rating
                 </th>
-                {ticketingEnabled ? (
-                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-600">Status</th>
-                ) : null}
                 <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-600">AI summary</th>
                 <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-600 min-w-[120px] max-w-[200px] hidden xl:table-cell">
                   Remark
@@ -257,14 +249,9 @@ function GroupRows({
   onViewItem: (item: FeedbackItem) => void;
   onDeleteItem?: (item: FeedbackItem, groupItems?: FeedbackItem[]) => void;
 }) {
-  const { enabled: ticketingEnabled } = useTicketingEnabled();
   const rep = group.representative;
   const botParentRow = botSessionParent(group.items);
   const botAnswerCount = botParentRow?.botConversationAnswers?.length ?? 0;
-  const servicesLine =
-    group.services.length > 0
-      ? group.services.slice(0, 4).join(", ") + (group.services.length > 4 ? "…" : "")
-      : "—";
   const departmentsLine =
     group.departments.length > 0
       ? group.departments.slice(0, 3).join(", ") + (group.departments.length > 3 ? "…" : "")
@@ -316,11 +303,6 @@ function GroupRows({
           </td>
           <td className="px-4 py-3 text-sm text-gray-600">
             <div className="line-clamp-2">{ticketDepartment(rep) || departmentsLine}</div>
-            {ticketService(rep) || servicesLine ? (
-              <div className="text-xs text-gray-500 mt-0.5 line-clamp-2">
-                {ticketService(rep) || servicesLine}
-              </div>
-            ) : null}
           </td>
           <td className="px-4 py-3 hidden md:table-cell">
             <span className={`inline-flex px-2 py-0.5 rounded-md text-xs font-medium capitalize ${sentimentClass(sentiment)}`}>
@@ -352,9 +334,6 @@ function GroupRows({
             {group.employeeId ? (
               <div className="text-xs text-gray-500 font-normal mt-0.5 font-mono">ID {group.employeeId}</div>
             ) : null}
-            {rep.ticketId && splitIssueCount <= 1 ? (
-              <div className="text-xs font-mono text-gray-500 mt-0.5">{rep.ticketId}</div>
-            ) : null}
             {splitIssueCount > 1 ? (
               <div className="text-xs text-violet-700 font-semibold mt-0.5">
                 Split · {splitIssueCount} issues
@@ -365,7 +344,6 @@ function GroupRows({
                 {botAnswerCount > 0
                   ? `${botAnswerCount} bot answer${botAnswerCount !== 1 ? "s" : ""}`
                   : `${group.items.length} submission${group.items.length !== 1 ? "s" : ""}`}
-                {group.ticketCount > 0 ? ` · ${group.ticketCount} ticket${group.ticketCount !== 1 ? "s" : ""}` : ""}
                 {botAnswerCount > 0 ? " · expand to see each answer" : ""}
               </div>
             ) : null}
@@ -375,9 +353,6 @@ function GroupRows({
           </td>
           <td className="px-4 py-3 text-sm text-gray-600 hidden lg:table-cell max-w-[140px]">
             <span className="line-clamp-2">{departmentsLine}</span>
-          </td>
-          <td className="px-4 py-3 text-sm text-gray-600 hidden md:table-cell max-w-[180px]">
-            <span className="line-clamp-2">{servicesLine}</span>
           </td>
           <td className="px-4 py-3">
             <span className={`inline-flex px-2 py-0.5 rounded-md text-xs font-medium capitalize ${sentimentClass(sentiment)}`}>
@@ -391,9 +366,6 @@ function GroupRows({
           <td className="px-4 py-3 text-sm text-gray-600 hidden sm:table-cell whitespace-nowrap">
             {group.lowestRating} · {ratingLabel[group.lowestRating] ?? "—"}
           </td>
-          {ticketingEnabled ? (
-            <td className="px-4 py-3 text-sm text-gray-600">{group.statusLabel}</td>
-          ) : null}
           <td className="px-4 py-3 text-sm text-gray-600 max-w-[200px]">
             <span className="line-clamp-2">{parentSummaryLine}</span>
           </td>
@@ -503,7 +475,6 @@ function MobileGroupCard({
   onViewItem: (item: FeedbackItem) => void;
   onDeleteItem?: (item: FeedbackItem, groupItems?: FeedbackItem[]) => void;
 }) {
-  const { enabled: ticketingEnabled } = useTicketingEnabled();
   const rep = group.representative;
   const botParent = botSessionParent(group.items);
   const botAnswers = [...(botParent?.botConversationAnswers ?? [])].sort(
@@ -532,11 +503,6 @@ function MobileGroupCard({
           ) : null}
           {splitIssueCount > 1 ? (
             <p className="text-xs text-violet-700 font-semibold mt-1">Split · {splitIssueCount} issues</p>
-          ) : variant === "tickets" || ticketingEnabled ? (
-            <p className="text-xs text-gray-500 mt-1">
-              {group.ticketCount} ticket{group.ticketCount !== 1 ? "s" : ""} · {group.items.length} entr
-              {group.items.length !== 1 ? "ies" : "y"}
-            </p>
           ) : (
             <p className="text-xs text-gray-500 mt-1">
               {feedbackModeLabel[effectiveFeedbackMode(rep, group.items)]} ·{" "}
@@ -549,17 +515,14 @@ function MobileGroupCard({
         </span>
       </div>
 
-      {group.departments.length > 0 || group.services.length > 0 ? (
+      {group.departments.length > 0 ? (
         <p className="mt-2 text-xs text-gray-600 line-clamp-2">
-          {[...group.departments.slice(0, 2), ...group.services.slice(0, 2)].join(" · ")}
+          {group.departments.slice(0, 2).join(" · ")}
         </p>
       ) : null}
 
       <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
         <p className="text-gray-600">Rating: <span className="font-medium text-gray-800">{group.lowestRating} · {ratingLabel[group.lowestRating] ?? "—"}</span></p>
-        {variant === "tickets" || ticketingEnabled ? (
-          <p className="text-gray-600">Status: <span className="font-medium text-gray-800">{group.statusLabel}</span></p>
-        ) : null}
       </div>
 
       <p className="mt-2 text-xs text-gray-600 line-clamp-2">{summary}</p>
@@ -612,7 +575,7 @@ function MobileGroupCard({
             <div key={`m-child-${item._id}-${index}`} className="rounded-xl border border-gray-200 p-2">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-[11px] font-medium text-violet-700">
-                  {splitIssueCount > 1 ? `Issue ${index + 1}/${splitIssueCount}` : item.ticketId ?? item._id}
+                  {splitIssueCount > 1 ? `Issue ${index + 1}/${splitIssueCount}` : item._id}
                 </p>
                 <span
                   className={`inline-flex px-2 py-0.5 rounded text-[11px] capitalize ${sentimentClass(
@@ -623,8 +586,7 @@ function MobileGroupCard({
                 </span>
               </div>
               <p className="text-xs text-gray-700 mt-1 line-clamp-2">
-                {ticketAiSummaryForItem(item) ||
-                  (ticketService(item) ? `Service: ${ticketService(item)}` : "—")}
+                {ticketAiSummaryForItem(item) || "—"}
               </p>
               <div className="mt-2 flex items-center gap-3">
                 <button
@@ -670,7 +632,6 @@ function BotAnswerRow({
   const transcript = answer.transcript?.trim() || "—";
 
   const questionLabel = answer.questionText?.trim() || "Bot question";
-  const { enabled: ticketingEnabled } = useTicketingEnabled();
 
   return (
     <tr className="bg-sky-50/50 hover:bg-sky-50/80">
@@ -695,14 +656,12 @@ function BotAnswerRow({
           </td>
           <td className="px-4 py-2 text-xs text-gray-500">Bot answer</td>
           <td className="px-4 py-2 text-sm text-gray-600 hidden lg:table-cell">—</td>
-          <td className="px-4 py-2 text-sm text-gray-600 hidden md:table-cell">—</td>
           <td className="px-4 py-2">
             <span className={`inline-flex px-2 py-0.5 rounded text-xs capitalize ${sentimentClass(sentiment)}`}>
               {sentiment ?? "—"}
             </span>
           </td>
           <td className="px-4 py-2 text-xs hidden sm:table-cell">—</td>
-          {ticketingEnabled ? <td className="px-4 py-2 text-xs">—</td> : null}
           <td className="px-4 py-2 text-xs text-gray-600 max-w-[200px] line-clamp-2">{transcript}</td>
           <td className="px-4 py-2 text-xs text-gray-500 hidden xl:table-cell">—</td>
           <td className="px-4 py-2 text-xs text-gray-500 hidden lg:table-cell">—</td>
@@ -734,9 +693,7 @@ function ChildRow({
   issueIndex?: number;
   issueTotal?: number;
 }) {
-  const { enabled: ticketingEnabled } = useTicketingEnabled();
   const sentiment = displaySentimentForItem(item) ?? getAiSentimentBucket(item);
-  const svc = ticketService(item);
   const dept = ticketDepartment(item);
   const issueLabel =
     issueIndex && issueTotal ? `Issue ${issueIndex}/${issueTotal}` : item.isSplitChild ? "Split issue" : "↳ issue";
@@ -746,10 +703,9 @@ function ChildRow({
       <td className="px-2 py-2" />
       {variant === "tickets" ? (
         <>
-          <td className="px-4 py-2 pl-8 text-xs font-mono text-gray-700">{item.ticketId ?? item._id}</td>
+          <td className="px-4 py-2 pl-8 text-xs font-mono text-gray-700">{item._id}</td>
           <td className="px-4 py-2 text-sm text-gray-700">
-            {svc ? <span className="font-medium">Service: {svc}</span> : "—"}
-            {dept && dept !== "—" ? <div className="text-xs text-gray-500">{dept}</div> : null}
+            {dept && dept !== "—" ? <span className="font-medium">{dept}</span> : "—"}
             {item.isSplitChild ? (
               <div className="text-xs text-amber-700 font-medium">Complaint ticket (split issue)</div>
             ) : null}
@@ -774,20 +730,15 @@ function ChildRow({
         <>
           <td className="px-4 py-2 pl-8 text-xs font-medium text-violet-700">
             {issueLabel}
-            {item.ticketId ? (
-              <div className="text-[11px] font-mono text-gray-500 mt-0.5">{item.ticketId}</div>
-            ) : null}
           </td>
           <td className="px-4 py-2 text-xs text-gray-600">{childModeShortLabel(item, groupItems)}</td>
           <td className="px-4 py-2 text-sm text-gray-600 hidden lg:table-cell">{dept || "—"}</td>
-          <td className="px-4 py-2 text-sm text-gray-600 hidden md:table-cell">{svc || "—"}</td>
           <td className="px-4 py-2">
             <span className={`inline-flex px-2 py-0.5 rounded text-xs capitalize ${sentimentClass(sentiment)}`}>
               {sentiment ?? "—"}
             </span>
           </td>
           <td className="px-4 py-2 text-xs hidden sm:table-cell">{item.rating}</td>
-          {ticketingEnabled ? <td className="px-4 py-2 text-xs">{item.status}</td> : null}
           <td className="px-4 py-2 text-xs text-gray-600 max-w-[200px] line-clamp-2">
             {ticketAiSummaryForItem(item) || "—"}
           </td>

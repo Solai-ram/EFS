@@ -10,7 +10,7 @@ import {
 import type { FeedbackItem } from "../lib/api";
 import { getTotalPages, paginateSlice } from "../lib/pagination";
 import { getAiSentimentBucket } from "../lib/sentiment";
-import { ticketDepartment, ticketService, uniqueSorted } from "../lib/ticketFilters";
+import { ticketDepartment, uniqueSorted } from "../lib/ticketFilters";
 import {
   last12WeeksRange,
   last30DaysRange,
@@ -28,7 +28,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
-import { useTicketingEnabled } from "../lib/branding";
 
 const ratingLabel: Record<number, string> = {
   1: "Very Poor",
@@ -39,7 +38,6 @@ const ratingLabel: Record<number, string> = {
 };
 
 export type AiSentimentFilter = "all" | "positive" | "negative" | "neutral" | "pending";
-type StatusFilter = "all" | FeedbackItem["status"];
 
 const DEFAULT_PAGE_SIZE = 25;
 
@@ -106,10 +104,7 @@ export function RecentFeedbackBySentiment({
   const [sentimentFilter, setSentimentFilter] = useState<AiSentimentFilter>(
     initialFilters?.sentiment ?? "all"
   );
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const { enabled: ticketingEnabled } = useTicketingEnabled();
   const [departmentFilter, setDepartmentFilter] = useState(initialFilters?.department || "all");
-  const [serviceFilter, setServiceFilter] = useState(initialFilters?.service || "all");
   const [modeFilter, setModeFilter] = useState<"all" | EffectiveFeedbackMode>(initialFilters?.mode ?? "all");
   const [searchText, setSearchText] = useState("");
   const searchQuery = searchText.trim().toLowerCase();
@@ -135,11 +130,6 @@ export function RecentFeedbackBySentiment({
     [sorted]
   );
 
-  const serviceOptions = useMemo(
-    () => uniqueSorted(sorted.map(ticketService)),
-    [sorted]
-  );
-
   // A submission's extra AI issues are stored as separate rows that may not carry the mode,
   // so the mode comes from the whole submission group.
   const modeBySubmissionGroup = useMemo(() => {
@@ -162,23 +152,19 @@ export function RecentFeedbackBySentiment({
         if (mode !== modeFilter) return false;
       }
       if (!matchesSentiment(item, sentimentFilter)) return false;
-      if (statusFilter !== "all" && item.status !== statusFilter) return false;
 
       const dept = ticketDepartment(item) || item.department?.trim() || "";
       if (departmentFilter !== "all" && dept !== departmentFilter) return false;
 
-      const svc = ticketService(item);
-      if (serviceFilter !== "all" && svc !== serviceFilter) return false;
-
       return true;
     });
-  }, [sorted, searchQuery, sentimentFilter, statusFilter, departmentFilter, serviceFilter, modeFilter, modeBySubmissionGroup]);
+  }, [sorted, searchQuery, sentimentFilter, departmentFilter, modeFilter, modeBySubmissionGroup]);
 
   const employeeGroups = useMemo(() => buildEmployeeFeedbackGroups(filtered), [filtered]);
 
   useEffect(() => {
     setPage(1);
-  }, [searchQuery, sentimentFilter, statusFilter, departmentFilter, serviceFilter, modeFilter, pageSize, listScope]);
+  }, [searchQuery, sentimentFilter, departmentFilter, modeFilter, pageSize, listScope]);
 
   const shortDate = (iso: string) => {
     const d = new Date(`${iso}T00:00:00`);
@@ -196,9 +182,7 @@ export function RecentFeedbackBySentiment({
   const showCustomRange = customRangeOpen || (!listScope.allTime && !isLast30 && !isLast12);
   const activeFilterCount = [
     sentimentFilter !== "all",
-    statusFilter !== "all",
     departmentFilter !== "all",
-    serviceFilter !== "all",
     modeFilter !== "all",
     Boolean(searchQuery),
   ].filter(Boolean).length;
@@ -227,17 +211,13 @@ export function RecentFeedbackBySentiment({
 
   const hasActiveFilters =
     sentimentFilter !== "all" ||
-    statusFilter !== "all" ||
     departmentFilter !== "all" ||
-    serviceFilter !== "all" ||
     modeFilter !== "all" ||
     Boolean(searchQuery);
 
   const clearFilters = () => {
     setSentimentFilter("all");
-    setStatusFilter("all");
     setDepartmentFilter("all");
-    setServiceFilter("all");
     setModeFilter("all");
     setSearchText("");
   };
@@ -443,7 +423,7 @@ export function RecentFeedbackBySentiment({
             </div>
           ) : null}
 
-          <div className={`grid grid-cols-2 gap-2 sm:grid-cols-3 ${ticketingEnabled ? "lg:grid-cols-5" : "lg:grid-cols-4"}`}>
+          <div className={`grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-3`}>
             <div className="flex min-w-0 flex-col gap-1">
               <label className={filterLabel}>Mode</label>
               <Select value={modeFilter} onValueChange={(v) => setModeFilter(v as "all" | EffectiveFeedbackMode)}>
@@ -475,22 +455,6 @@ export function RecentFeedbackBySentiment({
                 </SelectContent>
               </Select>
             </div>
-            {ticketingEnabled ? (
-            <div className="flex min-w-0 flex-col gap-1">
-              <label className={filterLabel}>Status</label>
-              <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
-                <SelectTrigger className={selectClass}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="New">New</SelectItem>
-                  <SelectItem value="In Progress">In progress</SelectItem>
-                  <SelectItem value="Resolved">Resolved</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            ) : null}
             <div className="flex min-w-0 flex-col gap-1">
               <label className={filterLabel}>Department</label>
               <Select value={departmentFilter} onValueChange={(v) => setDepartmentFilter(v)}>
@@ -500,22 +464,6 @@ export function RecentFeedbackBySentiment({
                 <SelectContent>
                   <SelectItem value="all">All</SelectItem>
                   {departmentOptions.map((name) => (
-                    <SelectItem key={name} value={name}>
-                      {name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex min-w-0 flex-col gap-1">
-              <label className={filterLabel}>Service</label>
-              <Select value={serviceFilter} onValueChange={(v) => setServiceFilter(v)}>
-                <SelectTrigger className={selectClass}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All</SelectItem>
-                  {serviceOptions.map((name) => (
                     <SelectItem key={name} value={name}>
                       {name}
                     </SelectItem>

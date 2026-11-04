@@ -199,7 +199,7 @@ export function WorkflowDiagram() {
             AI-Powered Intelligence
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-[#FAF7F2] rounded-xl p-6 border-l-4 border-[#8B5CF6]">
+            <div className="bg-[#FFFBF5] rounded-xl p-6 border-l-4 border-[#8B5CF6]">
               <div className="flex items-start gap-3 mb-3">
                 <Brain size={28} className="text-[#8B5CF6] flex-shrink-0" />
                 <div>
@@ -210,7 +210,7 @@ export function WorkflowDiagram() {
                 </div>
               </div>
             </div>
-            <div className="bg-[#FAF7F2] rounded-xl p-6 border-l-4 border-primary">
+            <div className="bg-[#FFFBF5] rounded-xl p-6 border-l-4 border-primary">
               <div className="flex items-start gap-3 mb-3">
                 <MessageSquare size={28} className="text-primary flex-shrink-0" />
                 <div>
@@ -221,7 +221,7 @@ export function WorkflowDiagram() {
                 </div>
               </div>
             </div>
-            <div className="bg-[#FAF7F2] rounded-xl p-6 border-l-4 border-[#2FBF71]">
+            <div className="bg-[#FFFBF5] rounded-xl p-6 border-l-4 border-[#2FBF71]">
               <div className="flex items-start gap-3 mb-3">
                 <GitBranch size={28} className="text-[#2FBF71] flex-shrink-0" />
                 <div>

@@ -18,7 +18,11 @@ export function FeedbackModeCards({ primaryColor, choices = feedbackModeChoices 
   const navigate = useNavigate();
 
   return (
-    <div className="mb-8 grid grid-cols-1 items-stretch gap-3 sm:grid-cols-3 sm:gap-4">
+    <div
+      className={`mb-8 grid grid-cols-1 items-stretch gap-3 sm:gap-4 ${
+        choices.length === 2 ? "mx-auto max-w-2xl sm:grid-cols-2" : "sm:grid-cols-3"
+      }`}
+    >
       {choices.map((choice) => {
         const Icon = choice.icon;
         return (
@@ -26,7 +30,7 @@ export function FeedbackModeCards({ primaryColor, choices = feedbackModeChoices 
             key={choice.id}
             type="button"
             onClick={() => navigate(choice.path)}
-            className="flex items-center gap-4 rounded-2xl border-2 border-gray-200 bg-[#FAF7F2] px-4 py-3.5 text-left transition-all hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-[0.99] sm:h-full sm:min-h-[11.5rem] sm:flex-col sm:justify-center sm:gap-0 sm:py-6 sm:text-center sm:hover:scale-[1.02] md:py-8"
+            className="flex items-center gap-4 rounded-2xl border-2 border-gray-200 bg-[#FFFBF5] px-4 py-3.5 text-left transition-all hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-[0.99] sm:h-full sm:min-h-[11.5rem] sm:flex-col sm:justify-center sm:gap-0 sm:py-6 sm:text-center sm:hover:scale-[1.02] md:py-8"
           >
             <div
               className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-white shadow-inner sm:mb-4 sm:h-16 sm:w-16"

@@ -36,9 +36,9 @@ export function FeedbackQrCard() {
   }, [target]);
 
   return (
-    <div className="rounded-2xl border-2 border-brand-gold bg-gradient-to-br from-[#FFFBF7] via-[#FFF8F0] to-[#FFF0F0] p-4 sm:p-6 shadow-md">
+    <div className="rounded-2xl border-2 border-brand-gold bg-gradient-to-br from-[#FFF9EC] via-[#FDF1D6] to-[#FFF9F0] p-4 sm:p-6 shadow-md">
       <h3 className="text-lg font-bold text-primary mb-1">Feedback QR Code</h3>
-      <p className="text-sm text-[#6b1229] mb-5">
+      <p className="text-sm text-[#DC1A1F] mb-5">
         Employees scan this to open the feedback form. Download the print-quality file for posters,
         notice boards and WhatsApp.
       </p>
@@ -58,14 +58,14 @@ export function FeedbackQrCard() {
         )}
         <div className="space-y-3 text-center sm:text-left flex-1 min-w-0">
           <p className="text-xs font-semibold text-primary uppercase tracking-wide">Scan target</p>
-          <p className="text-sm text-[#4a0d18] break-all font-mono bg-white/70 rounded-lg px-3 py-2 border border-brand-gold/30">
+          <p className="text-sm text-[#B3121A] break-all font-mono bg-white/70 rounded-lg px-3 py-2 border border-brand-gold/30">
             {target}
           </p>
           {print ? (
             <a
               href={print}
               download={`${HOSPITAL.shortName.toLowerCase()}-employee-feedback-qr.png`}
-              className="inline-flex px-4 py-2 rounded-lg font-semibold text-white bg-primary hover:bg-[#6f1029] transition-colors shadow-sm ring-1 ring-brand-gold/40"
+              className="inline-flex px-4 py-2 rounded-lg font-semibold text-white bg-primary hover:bg-[#B3121A] transition-colors shadow-sm ring-1 ring-brand-gold/40"
             >
               Download QR (print quality)
             </a>

@@ -32,66 +32,9 @@ export function buildComplaintSignature(department, service, comments) {
  * @param {import("mongoose").Model} Feedback
  * @param {{ employeeName: string; rating: number; complaintSignature: string }} params
  */
-export async function evaluateTicketForFeedback(Feedback, params) {
-  const { employeeName, rating, complaintSignature } = params;
-  const numericRating = Number(rating);
-  let ticketId = null;
-  let ticketRule = "none";
-  let ticketIsFresh = false;
-
-  if (numericRating === 1) {
-    return {
-      ticketId: `TKT-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
-      ticketRule: "critical_immediate",
-      ticketIsFresh: true,
-    };
-  }
-
-  if (numericRating === 2 && complaintSignature) {
-    const similarRows = await Feedback.find({
-      rating: 2,
-      complaintSignature,
-    })
-      .sort({ createdAt: 1 })
-      .lean();
-
-    const existingTicketId = similarRows.find((row) => row.ticketId)?.ticketId;
-    if (existingTicketId) {
-      return {
-        ticketId: existingTicketId,
-        ticketRule: "normal_reuse_existing",
-        ticketIsFresh: false,
-      };
-    }
-
-    const distinctUsers = new Set(
-      similarRows.map((row) => String(row.employeeName || "").trim().toLowerCase())
-    );
-    distinctUsers.add(String(employeeName).trim().toLowerCase());
-
-    const firstSeenAt = similarRows[0] ? new Date(similarRows[0].createdAt).getTime() : Date.now();
-    const ageHours = (Date.now() - firstSeenAt) / (1000 * 60 * 60);
-    const shouldRaise = distinctUsers.size >= 2 && ageHours >= 24;
-
-    if (shouldRaise) {
-      const newId = `TKT-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-      if (similarRows.length > 0) {
-        await Feedback.updateMany(
-          { _id: { $in: similarRows.map((row) => row._id) }, ticketId: null },
-          { $set: { ticketId: newId } }
-        );
-      }
-      return {
-        ticketId: newId,
-        ticketRule: "normal_after_24h_multi_employee",
-        ticketIsFresh: true,
-      };
-    }
-
-    return { ticketId: null, ticketRule: "normal_waiting_window_or_duplicates", ticketIsFresh: false };
-  }
-
-  return { ticketId, ticketRule, ticketIsFresh };
+export async function evaluateTicketForFeedback(_Feedback, _params) {
+  // HR feedback has no tickets: no rating or repeat count ever raises one.
+  return { ticketId: null, ticketRule: "none", ticketIsFresh: false };
 }
 
 /**

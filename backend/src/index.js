@@ -57,6 +57,9 @@ import {
   processQuestionnaireAnswers,
 } from "./employeeQuestionnaires.js";
 import { introText, registerQuestionnaireSpeechRoutes } from "./questionnaireSpeech.js";
+import { computeHrAnalytics } from "./hrAnalytics.js";
+import { recordAudit, registerAuditRoutes } from "./auditLog.js";
+import { loadQuestionnaireOverrides, registerQuestionnaireAdminRoutes } from "./questionnaireAdmin.js";
 import {
   CAPABILITIES,
   attachUser,
@@ -368,131 +371,12 @@ async function propagateVoiceRecordingToGroup(feedbackId, voiceRecordingRelPath)
   return result.modifiedCount ?? 0;
 }
 
-async function materializeMissingSplitChildrenForParent(parentRow) {
-  if (!parentRow || parentRow.isSplitChild) return 0;
-  const issues = Array.isArray(parentRow.feedbackIssues) ? parentRow.feedbackIssues : [];
-  if (issues.length <= 1) return 0;
+/** Each submission stays one row for HR. The AI's separate issues are kept on that row, not split into extra rows. */
+const SPLIT_ISSUES_INTO_ROWS = false;
 
-  let submissionGroupId = parentRow.submissionGroupId;
-  if (!submissionGroupId) {
-    submissionGroupId = newSubmissionGroupId();
-    await Feedback.updateOne({ _id: parentRow._id }, { $set: { submissionGroupId } });
-    parentRow = { ...parentRow, submissionGroupId };
-  }
-
-  const existingChildren = await Feedback.find({
-    submissionGroupId,
-    isSplitChild: true,
-  }).lean();
-  const childTicketIds = new Set(
-    existingChildren.map((c) => String(c.ticketId || "").trim()).filter(Boolean)
-  );
-
-  const feedbackDepartment = sanitizeOptionalLabel(parentRow.department);
-  let created = 0;
-
-  const base = {
-    employeeName: parentRow.employeeName,
-    employeeId: parentRow.employeeId,
-    feedbackType: parentRow.feedbackType,
-    dateOfJoining: parentRow.dateOfJoining,
-    lastWorkingDay: parentRow.lastWorkingDay,
-    rating: parentRow.rating,
-    source: parentRow.source,
-    submissionMode: parentRow.submissionMode,
-    botConversationAnswers: parentRow.botConversationAnswers || [],
-    submissionGroupId,
-    isSplitChild: true,
-    aiUrgency: parentRow.aiUrgency,
-    aiTopics: parentRow.aiTopics || [],
-    aiAnalyzedAt: parentRow.aiAnalyzedAt,
-    feedbackIssues: issues,
-    staffRemarks: parentRow.staffRemarks || "",
-  };
-
-  for (let i = 1; i < issues.length; i++) {
-    const issue = issues[i];
-    const issueSentiment =
-      aiSentimentOnly(issue?.sentiment) || aiSentimentOnly(parentRow.aiSentiment);
-    if (!canOpenTicketForSentiment(issueSentiment)) continue;
-
-    let childTicketId = String(issue.ticketId || "").trim() || null;
-    if (childTicketId && childTicketIds.has(childTicketId)) continue;
-
-    const childSig = buildComplaintSignature(
-      issue.department || feedbackDepartment,
-      issue.recommendedService,
-      issue.issueSummary
-    );
-
-    if (!childTicketId) {
-      const childEval = await evaluateTicketForFeedback(Feedback, {
-        employeeName: parentRow.employeeName,
-        rating: parentRow.rating,
-        complaintSignature: childSig,
-      });
-      childTicketId = childEval.ticketId;
-    }
-    if (issueSentiment === "negative" && !childTicketId) {
-      childTicketId = newTicketId();
-    }
-    if (!childTicketId) continue;
-
-    const childTopics = filterAiTopicsForTranscript(parentRow.aiTopics || [], parentRow.comments || "");
-    await Feedback.create({
-      ...base,
-      aiSentiment: issueSentiment,
-      department: issue.department || feedbackDepartment,
-      /** `issue.recommendedService` was already catalog-validated at analysis time (normalizeIssueFromAi);
-       * never fall back to parentRow.service â€” that's a *different* issue's (issue 0's) resolved value. */
-      service: sanitizeOptionalLabel(issue.recommendedService),
-      comments: String(parentRow.comments || "").trim(),
-      aiSummary: issue.issueSummary,
-      aiTopics: childTopics,
-      suggestedAction: issue.suggestedAction,
-      complaintSignature: childSig,
-      ticketId: childTicketId,
-      status: parentRow.status || "New",
-    });
-    childTicketIds.add(childTicketId);
-    created += 1;
-
-    if (!issue.ticketId) {
-      issues[i] = { ...issue, ticketId: childTicketId };
-    }
-  }
-
-  if (created > 0) {
-    const issuesWithTickets = ensureIssueTicketIds(issues, { newTicketId });
-    await Feedback.updateOne(
-      { _id: parentRow._id },
-      { $set: { feedbackIssues: issuesWithTickets, submissionGroupId } }
-    );
-    const freshParent = await Feedback.findById(parentRow._id)
-      .select("voiceRecordingRelPath")
-      .lean();
-    if (freshParent?.voiceRecordingRelPath) {
-      await propagateVoiceRecordingToGroup(parentRow._id, freshParent.voiceRecordingRelPath);
-    }
-  }
-
-  return created;
-}
-
-async function repairAllMissingSplitChildren() {
-  const parents = await Feedback.find({
-    isSplitChild: { $ne: true },
-    "feedbackIssues.1": { $exists: true },
-  }).lean();
-  let created = 0;
-  for (const parent of parents) {
-    created += await materializeMissingSplitChildrenForParent(parent);
-  }
-  return { scanned: parents.length, created };
-}
-
+/** HR feedback has no tickets: nothing is ever given a ticket id. Kept so older call sites stay valid. */
 function newTicketId() {
-  return `TKT-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+  return null;
 }
 
 async function ensureDefaults() {
@@ -614,6 +498,8 @@ app.get("/api/questionnaires/:type", (req, res) => {
 });
 
 registerQuestionnaireSpeechRoutes(app, { limiter: limitSpeechToText });
+registerQuestionnaireAdminRoutes(app);
+registerAuditRoutes(app);
 
 app.get("/api/health", (_req, res) => {
   res.json({
@@ -700,8 +586,22 @@ app.post("/api/auth/login", async (req, res) => {
       .populate("serviceId", "name")
       .lean();
     if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
+      await recordAudit(req, {
+        action: "auth.login_failed",
+        actor: { id: user ? String(user._id) : "", username: String(username).trim().toLowerCase(), role: user?.role || "" },
+        targetType: "user",
+        summary: user ? "Wrong password" : "Unknown username",
+        success: false,
+      });
       return res.status(401).json({ message: "Invalid credentials" });
     }
+    await recordAudit(req, {
+      action: "auth.login",
+      actor: { id: String(user._id), username: user.username, role: user.role },
+      targetType: "user",
+      targetId: String(user._id),
+      summary: "Signed in",
+    });
     const dept =
       user.departmentId && typeof user.departmentId === "object"
         ? user.departmentId
@@ -771,6 +671,12 @@ app.post("/api/auth/change-password", requireAuth, async (req, res) => {
 
     user.passwordHash = await bcrypt.hash(String(newPassword), 10);
     await user.save();
+    await recordAudit(req, {
+      action: "auth.password_changed",
+      targetType: "user",
+      targetId: String(userId),
+      summary: "Changed own password",
+    });
     return res.json({ ok: true });
   } catch (error) {
     return res.status(500).json({ message: "Failed to change password" });
@@ -1367,6 +1273,12 @@ app.post("/api/users", requireCapability(CAPABILITIES.USERS_MANAGE), async (req,
       .populate("departmentId", "name")
       .populate("serviceId", "name")
       .lean();
+    await recordAudit(req, {
+      action: "user.created",
+      targetType: "user",
+      targetId: String(doc._id),
+      summary: `Created ${doc.username} as ${role}`,
+    });
     return res.status(201).json(await serializeUserWithHodMappings(out));
   } catch (error) {
     if (error.code === 11000) {
@@ -1437,6 +1349,13 @@ app.patch("/api/users/:id", requireCapability(CAPABILITIES.USERS_MANAGE), async 
     } else {
       await syncHodCatalogMappings(updated._id, { departmentIds: [], serviceIds: [] });
     }
+    await recordAudit(req, {
+      action: "user.updated",
+      targetType: "user",
+      targetId: String(updated._id),
+      summary: `Updated ${updated.username} (role ${role}${update.passwordHash ? ", password reset" : ""})`,
+      meta: { role, passwordReset: Boolean(update.passwordHash), previousRole: existingUser.role },
+    });
     return res.json(await serializeUserWithHodMappings(updated));
   } catch (error) {
     if (error.code === 11000) {
@@ -1483,13 +1402,18 @@ app.delete("/api/users/:id", requireCapability(CAPABILITIES.USERS_MANAGE), async
         tickets: released.modifiedCount,
       });
     }
+    await recordAudit(req, {
+      action: "user.deleted",
+      targetType: "user",
+      targetId: String(id),
+      summary: `Deleted ${deleted.username || "a user"} (role ${deleted.role || "unknown"})`,
+    });
     return res.json({ ok: true, releasedTickets: released.modifiedCount ?? 0 });
   } catch (error) {
     return res.status(500).json({ message: "Failed to delete user" });
   }
 });
 
-/** Ensures every AI-negative feedback has a ticket id (open in Ticket Management) and reopens Resolved rows. */
 /**
  * Roles and the capability catalog that drives the RBAC screen.
  * Readable by anyone signed in (the user admin screen needs the role list);
@@ -1548,58 +1472,19 @@ app.patch(
         { upsert: false }
       );
       await refreshRoleCache();
+      await recordAudit(req, {
+        action: "role.updated",
+        targetType: "role",
+        targetId: key,
+        summary: `Changed permissions of ${key} (${capabilities.length} granted)`,
+        meta: { capabilities },
+      });
       return res.json(serializeRole(getCachedRole(key)));
     } catch (error) {
       return res.status(500).json({ message: "Failed to update role" });
     }
   }
 );
-
-app.post("/api/seed/open-negative-tickets", requireCapability(CAPABILITIES.MAINTENANCE_RUN), async (_req, res) => {
-  try {
-    const rows = await Feedback.find({ aiSentiment: "negative" }).lean();
-    let updated = 0;
-    for (const row of rows) {
-      const set = {};
-      let opened = false;
-      if (!row.ticketId) {
-        set.ticketId = newTicketId();
-        set.status = "New";
-        opened = true;
-      } else if (row.status === "Resolved") {
-        set.status = "New";
-      }
-      if (Object.keys(set).length > 0) {
-        await Feedback.updateOne({ _id: row._id }, { $set: set });
-        updated += 1;
-      }
-    }
-    const withTickets = await Feedback.countDocuments({
-      aiSentiment: "negative",
-      ticketId: { $nin: [null, ""] },
-    });
-    return res.json({
-      updated,
-      negativeWithTicket: withTickets,
-      tmsSynced: 0,
-      tmsFailed: 0,
-      tmsConfigured: false,
-      tmsOutboundEnabled: false,
-    });
-  } catch (error) {
-    return res.status(500).json({ message: "Failed to open negative tickets" });
-  }
-});
-
-/** Create separate DB rows for each AI split issue so tickets can be assigned to different HODs. */
-app.post("/api/feedback/repair-split-children", requireCapability(CAPABILITIES.MAINTENANCE_RUN), async (_req, res) => {
-  try {
-    const result = await repairAllMissingSplitChildren();
-    return res.json(result);
-  } catch (error) {
-    return res.status(500).json({ message: "Failed to repair split tickets" });
-  }
-});
 
 app.post("/api/feedback/infer-voice-rating", limitAiInference, async (req, res) => {
   try {
@@ -1848,7 +1733,7 @@ async function applyPendingAiToFeedback({
     outDoc = updated;
   }
 
-  if (issueBundle.issues.length > 1) {
+  if (SPLIT_ISSUES_INTO_ROWS && issueBundle.issues.length > 1) {
     const base = {
       employeeName,
       employeeId,
@@ -2134,7 +2019,7 @@ app.post("/api/feedback", limitFeedbackSubmit, (req, res, next) => {
     // Defense-in-depth: the Feedback schema also sanitizes employeeName on save, but
     // sanitizing here means ticket-signature generation and the AI prompt below see
     // the clean name too, not just the DB record.
-    const employeeName = sanitizeEmployeeName(req.body.employeeName);
+    let employeeName = sanitizeEmployeeName(req.body.employeeName);
     let comments = req.body.comments;
     const source = req.body.source;
     const staffRemarks = String(req.body.staffRemarks || "").trim().slice(0, 2000);
@@ -2179,10 +2064,12 @@ app.post("/api/feedback", limitFeedbackSubmit, (req, res, next) => {
     const lastWorkingDay =
       feedbackType === "relieving" ? normalizeIsoDate(req.body.lastWorkingDay) : "";
 
+    // General feedback (speak or type freely) may be anonymous: only the department is required.
+    if (feedbackType === "general" && !employeeName) employeeName = "Anonymous";
     if (!employeeName) {
       return res.status(400).json({ message: "employeeName is required" });
     }
-    if (!employeeId) {
+    if (feedbackType !== "general" && !employeeId) {
       return res.status(400).json({ message: "employeeId is required" });
     }
     if (!sanitizeOptionalLabel(req.body.department)) {
@@ -2240,6 +2127,21 @@ app.post("/api/feedback", limitFeedbackSubmit, (req, res, next) => {
       loadDepartmentCatalogForAi(),
     ]);
     let numericRating = Number(rating);
+
+    // Typed general feedback has no rating to pick (the form sends 0): let the AI read the text and rate it.
+    if (
+      feedbackType === "general" &&
+      (!Number.isFinite(numericRating) || numericRating < 1 || numericRating > 5) &&
+      commentsForAi &&
+      process.env.OPENROUTER_API_KEY
+    ) {
+      try {
+        const overall = await inferRatingFromVoiceTranscript(commentsForAi);
+        if (overall?.rating >= 1 && overall?.rating <= 5) numericRating = overall.rating;
+      } catch {
+        // Keep the neutral default when the AI is unavailable.
+      }
+    }
 
     /** Department the employee works in, picked on the form. */
     const feedbackDepartment = sanitizeOptionalLabel(req.body.department);
@@ -2741,6 +2643,13 @@ app.get("/api/feedback/:id", requireAuth, async (req, res) => {
     if (!feedbackInScope(row, await feedbackScopeForRequest(req))) {
       return res.status(403).json({ message: "You do not have access to this feedback" });
     }
+    await recordAudit(req, {
+      action: "feedback.viewed",
+      targetType: "feedback",
+      targetId: row.ticketId || String(row._id),
+      summary: `Opened ${row.feedbackType || "feedback"} submission${row.employeeId ? ` of employee ${row.employeeId}` : ""}`,
+      dedupe: true,
+    });
     return res.json(await enrichFeedbackWithGroupDonor(row));
   } catch (error) {
     return res.status(500).json({ message: "Failed to fetch feedback" });
@@ -2765,6 +2674,26 @@ const ANALYTICS_PROJECTION = [
   "feedbackIssues",
   "createdAt",
 ].join(" ");
+
+/** HR dashboard figures (by type, tickets, new-joiner blockers, exits, channels) for the chosen period. */
+const HR_ANALYTICS_PROJECTION = [
+  "feedbackType", "aiSentiment", "aiTopics", "rating", "isSplitChild", "ticketId", "status",
+  "createdAt", "resolutionNoteAt", "dateOfJoining", "lastWorkingDay", "submissionMode", "employeeId",
+  "answers.questionId", "answers.value",
+].join(" ");
+
+app.get("/api/analytics/hr", requireCapability(CAPABILITIES.INSIGHTS_VIEW), async (req, res) => {
+  try {
+    const mongoFilter = applyFeedbackScope(
+      buildFeedbackInsightsFilter(req.query),
+      await feedbackScopeForRequest(req)
+    );
+    const rows = await Feedback.find(mongoFilter).select(HR_ANALYTICS_PROJECTION).lean();
+    return res.json(computeHrAnalytics(rows));
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to compute HR analytics" });
+  }
+});
 
 app.get("/api/analytics", requireCapability(CAPABILITIES.INSIGHTS_VIEW), async (req, res) => {
   try {
@@ -2957,232 +2886,15 @@ app.post("/api/summary-reports/generate", requireCapability(CAPABILITIES.REPORTS
       periodEnd: range.end,
     });
 
+    await recordAudit(req, {
+      action: "reports.generated",
+      targetType: "report",
+      targetId: `${periodType}:${periodKey}`,
+      summary: `Generated ${periodType} reports for ${periodKey}`,
+    });
     return res.json(await loadSummaryReportResponse(periodType, periodKey));
   } catch (error) {
     return res.status(500).json({ message: "Failed to generate summary report" });
-  }
-});
-
-// Bulk "Acknowledge" only â€” New -> In Progress, no CAPA. Deliberately does not
-// accept "Resolved": that transition needs a CAPA per ticket (the gate below
-// in /:id/status), which can't be satisfied for a batch. Path is a sibling of
-// /:id/status rather than nested under it so it can never collide with that
-// route's :id param matching.
-app.post("/api/feedback/bulk-acknowledge", requireCapability(CAPABILITIES.FEEDBACK_RESOLVE), async (req, res) => {
-  try {
-    const ids = Array.isArray(req.body.ids) ? req.body.ids : [];
-    const validIds = [...new Set(ids)].filter((id) => mongoose.Types.ObjectId.isValid(id));
-
-    if (!validIds.length) {
-      return res.status(400).json({ message: "ids must be a non-empty array of feedback ids" });
-    }
-    if (validIds.length > 500) {
-      return res.status(400).json({ message: "Acknowledge at most 500 tickets per request" });
-    }
-
-    const filter = { _id: { $in: validIds }, status: "New" };
-    if (!userHasCapability(req, CAPABILITIES.FEEDBACK_READ_ALL)) {
-      // Queue-scoped caller â€” same restriction as the single-ticket endpoint,
-      // applied as a query filter instead of a per-id check.
-      filter.assignedToUserId = new mongoose.Types.ObjectId(req.user.id);
-    }
-
-    const result = await Feedback.updateMany(filter, { $set: { status: "In Progress" } });
-    const acknowledged = result.modifiedCount || 0;
-
-    return res.json({
-      requested: validIds.length,
-      acknowledged,
-      skipped: validIds.length - acknowledged,
-    });
-  } catch (error) {
-    return res.status(500).json({ message: "Failed to bulk-acknowledge feedback" });
-  }
-});
-
-app.patch("/api/feedback/:id/status", requireCapability(CAPABILITIES.FEEDBACK_RESOLVE), async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { status } = req.body;
-    const resolutionNote = String(req.body.resolutionNote || "").trim().slice(0, 2000);
-
-    if (!["New", "In Progress", "Resolved"].includes(status)) {
-      return res.status(400).json({ message: "Invalid status value" });
-    }
-
-    if (status === "Resolved" && !resolutionNote) {
-      return res.status(400).json({
-        message: "Resolution comment is required when marking a ticket as Resolved",
-      });
-    }
-
-    const capaInput = req.body.capa && typeof req.body.capa === "object" ? req.body.capa : {};
-    const capaText = (value) => String(value || "").trim().slice(0, 2000);
-    const rootCause = capaText(capaInput.rootCause);
-    const correctiveAction = capaText(capaInput.correctiveAction);
-    const preventiveAction = capaText(capaInput.preventiveAction);
-
-    if (status === "Resolved") {
-      const missing = [];
-      if (!rootCause) missing.push("root cause");
-      if (!correctiveAction) missing.push("corrective action");
-      if (!preventiveAction) missing.push("preventive action");
-      if (missing.length) {
-        return res.status(400).json({
-          message: `CAPA is required to resolve a ticket â€” please fill in ${missing.join(", ")}.`,
-        });
-      }
-    }
-
-    // Queue-scoped users may only act on their own tickets â€” nothing previously
-    // stopped any caller from resolving any ticket.
-    const target = await Feedback.findById(id).select("assignedToUserId").lean();
-    if (!target) {
-      return res.status(404).json({ message: "Feedback not found" });
-    }
-    if (
-      !userHasCapability(req, CAPABILITIES.FEEDBACK_READ_ALL) &&
-      String(target.assignedToUserId || "") !== req.user.id
-    ) {
-      return res.status(403).json({ message: "This ticket is not assigned to you" });
-    }
-
-    const update = { status };
-    if (status === "Resolved") {
-      update.resolutionNote = resolutionNote;
-      update.resolutionNoteAt = new Date();
-
-      // The CAPA author is the authenticated user, never the request body. This
-      // is a quality audit record: a client-supplied id let anyone attribute a
-      // CAPA to any user.
-      const writtenByUserId = new mongoose.Types.ObjectId(req.user.id);
-      const writtenByUsername = req.user.username;
-
-      update.capa = {
-        rootCause,
-        correctiveAction,
-        preventiveAction,
-        targetDate: String(capaInput.targetDate || "").trim().slice(0, 40),
-        writtenByUserId,
-        writtenByUsername,
-        writtenAt: new Date(),
-      };
-    }
-
-    const updated = await Feedback.findByIdAndUpdate(id, { $set: update }, {
-      new: true,
-      runValidators: true,
-    }).lean();
-
-    if (!updated) {
-      return res.status(404).json({ message: "Feedback not found" });
-    }
-
-    return res.json(attachVoicePlaybackUrl(updated));
-  } catch (error) {
-    return res.status(500).json({ message: "Failed to update feedback status" });
-  }
-});
-
-/** Loose label compare: case, punctuation and spacing collapse (Front Office â†” front-office). */
-function labelKey(value) {
-  return String(value || "")
-    .toLowerCase()
-    .replace(/&/g, " and ")
-    .replace(/[^a-z0-9]+/g, "")
-    .trim();
-}
-
-/**
- * Does this HOD own the department (or service) the ticket sits under?
- * Ownership comes from the catalog maps that the admin screens maintain.
- */
-async function hodOwnershipForTicket(feedbackId, hodUserId) {
-  const ticket = await Feedback.findById(feedbackId)
-    .select("department service feedbackIssues")
-    .lean();
-  const ticketLabels = [
-    ticket?.department,
-    ticket?.service,
-    ticket?.feedbackIssues?.[0]?.department,
-    ticket?.feedbackIssues?.[0]?.recommendedService,
-  ]
-    .map((value) => String(value || "").trim())
-    .filter(Boolean);
-
-  const [departments, services] = await Promise.all([
-    Department.find({ hodUserId }).select("name").lean(),
-    RoutingService.find({ hodUserId }).select("name").lean(),
-  ]);
-  const owns = [...departments, ...services].map((row) => row.name).filter(Boolean);
-
-  const ownedKeys = new Set(owns.map(labelKey));
-  const matches = ticketLabels.some((label) => ownedKeys.has(labelKey(label)));
-
-  return { matches, owns, ticketLabel: ticketLabels[0] || "" };
-}
-
-app.patch("/api/feedback/:id/assign", requireCapability(CAPABILITIES.FEEDBACK_ASSIGN), async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { userId } = req.body;
-
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ message: "Invalid feedback id" });
-    }
-
-    let assignFields = {
-      assignedToUserId: null,
-      assignedToUsername: "",
-      assignedAt: null,
-    };
-
-    if (userId) {
-      if (!mongoose.Types.ObjectId.isValid(String(userId))) {
-        return res.status(400).json({ message: "Invalid user id" });
-      }
-      const user = await User.findById(userId).select("username role").lean();
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
-      // A ticket owner must be able to actually work it â€” i.e. hold the
-      // "assigned queue" capability. Checked by capability rather than by the
-      // literal role name so a renamed or custom queue role still works.
-      if (!capabilitiesForRole(user.role).includes(CAPABILITIES.FEEDBACK_READ_ASSIGNED)) {
-        return res.status(400).json({
-          message: "Tickets can only be assigned to a department head",
-        });
-      }
-
-      // Warn â€” do not block â€” when the target does not own the ticket's
-      // department or service. Complaints legitimately route to service owners
-      // (Housekeeping, Transport) rather than the clinical department of the
-      // visit, so a hard block would break real workflows. The client confirms
-      // deliberate cross-department routing.
-      const ownership = await hodOwnershipForTicket(id, user._id);
-      if (!ownership.matches && req.body?.confirmCrossDepartment !== true) {
-        return res.status(409).json({
-          requiresConfirmation: true,
-          message: ownership.owns.length
-            ? `${user.username} owns ${ownership.owns.join(", ")}, but this ticket is under ${ownership.ticketLabel || "no department"}. Assign anyway?`
-            : `${user.username} has no department or service mapped yet. Assign this ${ownership.ticketLabel || "ticket"} anyway?`,
-        });
-      }
-
-      assignFields = {
-        assignedToUserId: user._id,
-        assignedToUsername: user.username,
-        assignedAt: new Date(),
-      };
-    }
-
-    const updated = await Feedback.findByIdAndUpdate(id, { $set: assignFields }, { new: true }).lean();
-    if (!updated) {
-      return res.status(404).json({ message: "Feedback not found" });
-    }
-    return res.json(attachVoicePlaybackUrl(updated));
-  } catch (error) {
-    return res.status(500).json({ message: "Failed to update ticket assignment" });
   }
 });
 
@@ -3230,6 +2942,13 @@ app.delete("/api/feedback/:id", requireCapability(CAPABILITIES.FEEDBACK_DELETE),
     if (!deleted.isSplitChild) {
       await removeFeedbackRecordings(deleted);
     }
+    await recordAudit(req, {
+      action: "feedback.deleted",
+      targetType: "feedback",
+      targetId: deleted.ticketId || String(deleted._id),
+      summary: `Deleted ${deleted.feedbackType || "feedback"} submission${deleted.employeeId ? ` of employee ${deleted.employeeId}` : ""}`,
+      meta: { splitIssuesDeleted },
+    });
     return res.json({ success: true, id, splitIssuesDeleted });
   } catch (error) {
     return res.status(500).json({ message: "Failed to delete feedback" });
@@ -3291,6 +3010,11 @@ app.put("/api/branding", requireCapability(CAPABILITIES.BRANDING_MANAGE), async 
       },
       { upsert: true, new: true, runValidators: true }
     ).lean();
+    await recordAudit(req, {
+      action: "settings.branding_updated",
+      targetType: "settings",
+      summary: `Saved theme ${updated.primaryColor} / ${updated.accentColor}`,
+    });
     return res.json(serializeBrandingSettings(updated));
   } catch (error) {
     return res.status(500).json({ message: "Failed to save branding" });
@@ -3314,49 +3038,27 @@ app.delete("/api/branding", requireCapability(CAPABILITIES.BRANDING_MANAGE), asy
       },
       { upsert: true, new: true, runValidators: true }
     ).lean();
+    await recordAudit(req, {
+      action: "settings.branding_reset",
+      targetType: "settings",
+      summary: "Reset theme, logo and voice settings to defaults",
+    });
     return res.json(serializeBrandingSettings(reset));
   } catch (error) {
     return res.status(500).json({ message: "Failed to reset branding" });
   }
 });
 
-/** Module switches. Live on the global settings doc so GET /api/branding carries them to every screen. */
-const MODULE_FLAGS = ["ticketingEnabled", "departmentsEnabled", "servicesEnabled"];
-
-app.put(
-  "/api/settings/features",
-  requireCapability(CAPABILITIES.FEATURES_MANAGE),
-  async (req, res) => {
-    try {
-      const body = req.body ?? {};
-      const changes = {};
-      for (const flag of MODULE_FLAGS) {
-        if (!(flag in body)) continue;
-        if (typeof body[flag] !== "boolean") {
-          return res.status(400).json({ message: `${flag} must be true or false` });
-        }
-        changes[flag] = body[flag];
-      }
-      if (!Object.keys(changes).length) {
-        return res.status(400).json({ message: `Send at least one of: ${MODULE_FLAGS.join(", ")}` });
-      }
-      const updated = await Branding.findOneAndUpdate(
-        { key: "global" },
-        { $set: changes },
-        { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true }
-      ).lean();
-      return res.json(serializeBrandingSettings(updated));
-    } catch (error) {
-      return res.status(500).json({ message: "Failed to save module settings" });
-    }
-  }
-);
-
 async function startServer() {
   try {
     await mongoose.connect(MONGODB_URI);
     // eslint-disable-next-line no-console
     console.log(`[feedback] MongoDB connected: ${mongoose.connection.db.databaseName}`);
+    const editedQuestionnaires = await loadQuestionnaireOverrides();
+    if (editedQuestionnaires) {
+      // eslint-disable-next-line no-console
+      console.log(`[feedback] loaded ${editedQuestionnaires} edited questionnaire(s)`);
+    }
     // Roles must be loaded before the server accepts traffic â€” every capability
     // check reads the cache this populates.
     await ensureRolesSeeded();

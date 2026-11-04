@@ -64,7 +64,7 @@ export function buildSeedFeedback(departmentIds) {
       service: "Career Growth",
       rating: 2,
       comments:
-        "Q: Which reason / factor from the list below made you leave the company?\nA: Career growth / promotion\n\nQ: What should have been changed so that you would have continued to work?\nA: A clear promotion path and recognition from the manager.",
+        "Q: Which reason or factor made you leave the company?\nA: Career growth / promotion\n\nQ: What should have been changed so that you would have continued to work?\nA: A clear promotion path and recognition from the manager.",
       status: "In Progress",
       source: "employee",
       aiSentiment: "negative",

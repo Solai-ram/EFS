@@ -10,8 +10,8 @@ import { feedbackTypeChoices } from "../lib/feedbackTypes";
 import { HOSPITAL } from "../lib/hospital";
 
 export function Welcome() {
-  const [primaryColor, setPrimaryColor] = useState("#8B1538");
-  const [accentColor, setAccentColor] = useState("#C9A227");
+  const [primaryColor, setPrimaryColor] = useState("#DC1A1F");
+  const [accentColor, setAccentColor] = useState("#F7A014");
 
   useEffect(() => {
     void loadBrandingSettings().then((c) => {
@@ -53,9 +53,6 @@ export function Welcome() {
 
         <FeedbackModeCards primaryColor={primaryColor} choices={feedbackTypeChoices} />
 
-        <p className="text-sm text-gray-500 mb-6">
-          HR staff helping an employee use the same options above.
-        </p>
       </div>
     </div>
   );

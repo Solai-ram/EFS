@@ -17,8 +17,9 @@
     "reanalyze-pending": "node scripts/reanalyzePendingFeedback.js",
     "uploads:check": "node scripts/checkUploadsHealth.js",
     "reset-db": "node scripts/resetDatabase.js --yes",
-    "test": "node --test src/fieldSanitize.test.js src/piiRedact.test.js src/feedbackScope.test.js src/employeeQuestionnaires.test.js",
-    "seed-superadmin": "node scripts/seedSuperadmin.js"
+    "test": "node --test src/fieldSanitize.test.js src/piiRedact.test.js src/feedbackScope.test.js src/employeeQuestionnaires.test.js src/hrAnalytics.test.js",
+    "seed-superadmin": "node scripts/seedSuperadmin.js",
+    "retire-roles": "node scripts/retireRoles.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",

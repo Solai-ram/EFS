@@ -31,6 +31,9 @@ export function useEmployeeIdentity(feedbackType: FeedbackType = "general") {
   const [lastWorkingDay, setLastWorkingDay] = useState("");
   const [hospitalDepartments, setHospitalDepartments] = useState<Department[]>([]);
 
+  // General feedback only needs a department; name and employee ID are optional.
+  const nameRequired = feedbackType !== "general";
+  const idRequired = feedbackType !== "general";
   const joiningDateRequired = feedbackType !== "general";
   const lastWorkingDayRequired = feedbackType === "relieving";
 
@@ -49,8 +52,8 @@ export function useEmployeeIdentity(feedbackType: FeedbackType = "general") {
   }, []);
 
   const resolvedEmployeeName = employeeName.trim();
-  const nameReady = Boolean(resolvedEmployeeName);
-  const idReady = Boolean(employeeId.trim());
+  const nameReady = !nameRequired || Boolean(resolvedEmployeeName);
+  const idReady = !idRequired || Boolean(employeeId.trim());
   const departmentReady = Boolean(department.trim());
   const joiningDateReady = !joiningDateRequired || Boolean(dateOfJoining);
   const lastWorkingDayReady = !lastWorkingDayRequired || Boolean(lastWorkingDay);
@@ -59,8 +62,8 @@ export function useEmployeeIdentity(feedbackType: FeedbackType = "general") {
     nameReady && idReady && departmentReady && joiningDateReady && lastWorkingDayReady;
 
   const validateForSubmit = useCallback((): string | null => {
-    if (!employeeName.trim()) return "Please enter your name.";
-    if (!employeeId.trim()) return "Please enter your employee ID.";
+    if (nameRequired && !employeeName.trim()) return "Please enter your name.";
+    if (idRequired && !employeeId.trim()) return "Please enter your employee ID.";
     if (!department.trim()) return "Please select your department.";
     if (joiningDateRequired && !dateOfJoining) return "Please enter your date of joining.";
     if (dateOfJoining && dateOfJoining > todayIso()) {
@@ -78,9 +81,11 @@ export function useEmployeeIdentity(feedbackType: FeedbackType = "general") {
     department,
     employeeId,
     employeeName,
+    idRequired,
     joiningDateRequired,
     lastWorkingDay,
     lastWorkingDayRequired,
+    nameRequired,
   ]);
 
   const getSubmitFields = useCallback(
@@ -124,6 +129,8 @@ export function useEmployeeIdentity(feedbackType: FeedbackType = "general") {
     lastWorkingDay,
     setLastWorkingDay,
     hospitalDepartments,
+    nameRequired,
+    idRequired,
     joiningDateRequired,
     lastWorkingDayRequired,
     resolvedEmployeeName,

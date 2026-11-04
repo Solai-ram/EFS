@@ -199,8 +199,8 @@ const RELIEVING = [
     section: "exit",
     kind: "text",
     required: true,
-    textEn: "Which reason / factor from the list below made you leave the company?",
-    textTa: "கீழே உள்ள பட்டியலிலிருந்து எந்தக் காரணம் உங்களை நிறுவனத்திலிருந்து வெளியேறச் செய்தது?",
+    textEn: "Which reason or factor made you leave the company?",
+    textTa: "எந்தக் காரணம் உங்களை நிறுவனத்திலிருந்து வெளியேறச் செய்தது?",
   },
   {
     id: "x_dept_improvements",
@@ -239,8 +239,35 @@ const QUESTIONNAIRES = {
   general: [],
 };
 
+/** Admin-edited copies (see questionnaireAdmin.js). When present they replace the built-in questions. */
+const overrides = new Map();
+
+export function setQuestionnaireOverride(feedbackType, config) {
+  overrides.set(feedbackType, config);
+}
+
+export function clearQuestionnaireOverride(feedbackType) {
+  overrides.delete(feedbackType);
+}
+
+/** The questions in use: the admin's edited copy if there is one, else the built-in questions. */
 export function getQuestionnaire(feedbackType) {
-  return QUESTIONNAIRES[feedbackType] || [];
+  return overrides.get(feedbackType)?.questions ?? QUESTIONNAIRES[feedbackType] ?? [];
+}
+
+export function getDefaultQuestionnaire(feedbackType) {
+  return QUESTIONNAIRES[feedbackType] ?? [];
+}
+
+/** Intro text the admin wrote for a language, or "" to use the built-in intro. */
+export function getCustomIntro(feedbackType, lang) {
+  const intro = overrides.get(feedbackType)?.intro;
+  return (lang === "ta" ? intro?.ta : intro?.en) || "";
+}
+
+/** Section ids in the order they first appear in the built-in questions. */
+export function getQuestionnaireSections(feedbackType) {
+  return [...new Set(getDefaultQuestionnaire(feedbackType).map((q) => q.section))];
 }
 
 export function normalizeFeedbackType(raw) {

@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
+import { applyThemeToChartPalette } from "./chartPalette";
 import {
   getBrandingSettingsApi,
   resetBrandingSettingsApi,
   saveBrandingSettingsApi,
-  saveFeatureSettingsApi,
   type BrandingSettings,
   type BrandingSettingsInput,
   type ModuleFlag,
@@ -12,9 +12,9 @@ import {
 const BRANDING_UPDATED_EVENT = "feedback:branding-updated";
 
 const DEFAULT_BRANDING: BrandingSettings = {
-  primaryColor: "#8B1538",
-  accentColor: "#C9A227",
-  pageBackgroundColor: "#FAF7F2",
+  primaryColor: "#DC1A1F",
+  accentColor: "#F7A014",
+  pageBackgroundColor: "#FFF9F0",
   logoDataUrl: null,
   voiceRecordingMaxSeconds: 120,
   botThinkSeconds: 3,
@@ -53,6 +53,8 @@ function setBrandingCache(next: BrandingSettings): BrandingSettings {
     servicesEnabled: next.servicesEnabled !== false,
   };
   brandingLoaded = true;
+  // Charts read their colours from the theme, so update them before anything re-renders.
+  applyThemeToChartPalette(brandingCache.primaryColor, brandingCache.accentColor);
   window.dispatchEvent(new CustomEvent(BRANDING_UPDATED_EVENT));
   return brandingCache;
 }
@@ -92,34 +94,6 @@ export async function resetBrandingSettings(): Promise<BrandingSettings> {
   return setBrandingCache(reset);
 }
 
-export async function saveModuleEnabled(
-  module: ModuleFlag,
-  enabled: boolean
-): Promise<BrandingSettings> {
-  const saved = await saveFeatureSettingsApi({ [module]: enabled });
-  return setBrandingCache(saved);
-}
-
-/**
- * Whether a module is switched on. `loaded` stays false until the settings
- * arrive, so route guards wait instead of bouncing a deep link.
- */
-export function useModuleEnabled(module: ModuleFlag): { enabled: boolean; loaded: boolean } {
-  const read = () => ({ enabled: brandingCache[module], loaded: brandingLoaded });
-  const [state, setState] = useState(read);
-  useEffect(() => {
-    const unsubscribe = onBrandingSettingsChange(() => setState(read()));
-    if (brandingLoaded) setState(read());
-    else void loadBrandingSettings();
-    return unsubscribe;
-  }, [module]);
-  return state;
-}
-
-export function useTicketingEnabled(): { enabled: boolean; loaded: boolean } {
-  return useModuleEnabled("ticketingEnabled");
-}
-
 export function applyBrandingTheme(settings: BrandingSettings): void {
   const root = document.documentElement;
   root.style.setProperty("--primary", settings.primaryColor);
@@ -127,6 +101,14 @@ export function applyBrandingTheme(settings: BrandingSettings): void {
   root.style.setProperty("--brand-gold", settings.accentColor);
   root.style.setProperty("--ring", settings.primaryColor);
   root.style.setProperty("--background", settings.pageBackgroundColor);
+  applyThemeToChartPalette(settings.primaryColor, settings.accentColor);
+}
+
+/** Re-renders the calling component when the theme changes, so charts pick up the new colours. */
+export function useBrandingRevision(): number {
+  const [revision, setRevision] = useState(0);
+  useEffect(() => onBrandingSettingsChange(() => setRevision((r) => r + 1)), []);
+  return revision;
 }
 
 export function onBrandingSettingsChange(callback: () => void): () => void {

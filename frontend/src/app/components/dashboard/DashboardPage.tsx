@@ -1,4 +1,4 @@
-import { useId, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router";
 import { motion, MotionConfig, useReducedMotion } from "motion/react";
 import {
@@ -7,11 +7,14 @@ import {
   ArrowUpRight,
   ChevronRight,
   MessageSquareText,
+  LogOut,
   Minus,
   RefreshCw,
   Star,
   ThumbsDown,
   ThumbsUp,
+  UserPlus,
+  Users,
 } from "lucide-react";
 import {
   Area,
@@ -23,8 +26,10 @@ import {
   YAxis,
   type TooltipProps,
 } from "recharts";
-import type { FeedbackItem } from "../../lib/api";
-import { SENTIMENT_COLORS } from "../../lib/chartPalette";
+import { getHrAnalytics, type FeedbackItem, type HrAnalytics } from "../../lib/api";
+import { canonicalTopicFromTag } from "../../lib/complaintTopics";
+import { SENTIMENT_COLORS, THEME_CHART } from "../../lib/chartPalette";
+import { useBrandingRevision } from "../../lib/branding";
 import {
   PERIOD_LABELS,
   buildDashboardTables,
@@ -47,15 +52,16 @@ type DashboardPageProps = {
   feedbackPath: string;
 };
 
-const CARD = "rounded-2xl border border-[#ece6de] bg-white shadow-[0_1px_2px_rgba(33,29,26,0.04)]";
+const CARD = "rounded-2xl border border-[#F2E7D5] bg-white shadow-[0_1px_2px_rgba(33,29,26,0.04)]";
 /** Hairline grid and axis ink, one step off the card surface. */
-const GRID = "#efe9e2";
-const AXIS_INK = "#8a8178";
+const GRID = "#F7EEDF";
+const AXIS_INK = "#6B5B57";
 /** De-emphasis hue for sparklines; the accent marks only the latest point. */
-const SPARK_INK = "#c4bcb2";
+const SPARK_INK = "#9BA8AB";
 
 export function DashboardPage({ feedbackPath }: DashboardPageProps) {
   const navigate = useNavigate();
+  useBrandingRevision();
   const [range, setRange] = useState<DashboardRange>(defaultDashboardRange);
   const { window: period, current, previous, scope, isLoading, error, reload } = useDashboardData(range);
   const [detailItem, setDetailItem] = useState<FeedbackItem | null>(null);
@@ -65,6 +71,30 @@ export function DashboardPage({ feedbackPath }: DashboardPageProps) {
   const tables = useMemo(() => buildDashboardTables(current, scope), [current, scope]);
   const trend = useMemo(() => buildSentimentTrend(current, period), [current, period]);
   const attention = useMemo(() => latestNegative(current), [current]);
+
+  // HR figures that need the questionnaire answers, so they come from the server for the same period.
+  const [hr, setHr] = useState<HrAnalytics | null>(null);
+  const [hrLoading, setHrLoading] = useState(true);
+  const periodStartMs = period.start.getTime();
+  const periodEndMs = period.end.getTime();
+  useEffect(() => {
+    let alive = true;
+    setHrLoading(true);
+    void getHrAnalytics(periodStartMs, periodEndMs)
+      .then((data) => {
+        if (alive) setHr(data);
+      })
+      .catch(() => {
+        if (alive) setHr(null);
+      })
+      .finally(() => {
+        if (alive) setHrLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+    // `current` changes whenever the feedback list reloads, so Refresh also refreshes these figures.
+  }, [periodStartMs, periodEndMs, current]);
 
   const openFeedback = (filters: Parameters<typeof feedbackLinkQuery>[1] = {}) =>
     navigate(`${feedbackPath}${feedbackLinkQuery(period, filters)}`);
@@ -87,7 +117,7 @@ export function DashboardPage({ feedbackPath }: DashboardPageProps) {
 
         <Reveal as="section" className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#8A6A10]">Employee feedback</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#9A5B00]">Employee feedback</p>
             <h1 className="mt-1 text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">Dashboard</h1>
             <p className="mt-1 text-sm text-gray-600">How employees rated their experience.</p>
           </div>
@@ -107,7 +137,7 @@ export function DashboardPage({ feedbackPath }: DashboardPageProps) {
             change={changeOf(now.feedback, before.feedback, "count")}
             goodWhen="up"
             spark={trend.map((p) => p.total)}
-            sparkAccent="#8B1538"
+            sparkAccent={THEME_CHART.primary}
             sparkKey={`count-${periodKey}`}
             loading={firstLoad}
             onClick={() => openFeedback()}
@@ -151,7 +181,7 @@ export function DashboardPage({ feedbackPath }: DashboardPageProps) {
             change={changeOf(now.averageRating, before.averageRating, "rating")}
             goodWhen="up"
             spark={trend.map((p) => p.averageRating)}
-            sparkAccent="#c98500"
+            sparkAccent={THEME_CHART.accent}
             sparkKey={`rating-${periodKey}`}
             loading={firstLoad}
           />
@@ -204,6 +234,8 @@ export function DashboardPage({ feedbackPath }: DashboardPageProps) {
             )}
           </Reveal>
         </section>
+
+        <HrInsights hr={hr} loading={hrLoading && !hr} periodKey={periodKey} />
 
         <section className="grid grid-cols-1 gap-4 sm:gap-6 xl:grid-cols-5">
           <Reveal order={9} className={`${CARD} p-5 sm:p-6 xl:col-span-2`}>
@@ -344,7 +376,7 @@ function PeriodPicker({
       <div className="flex min-w-0 items-start gap-2 sm:items-center">
         {/* Phones: a 2×2 grid so every period is visible; one row from small tablets up. */}
         <div
-          className="relative grid min-w-0 flex-1 grid-cols-2 gap-0.5 rounded-xl border sm:inline-flex sm:flex-none sm:gap-0 border-[#ece6de] bg-white p-1 shadow-[0_1px_2px_rgba(33,29,26,0.04)]"
+          className="relative grid min-w-0 flex-1 grid-cols-2 gap-0.5 rounded-xl border sm:inline-flex sm:flex-none sm:gap-0 border-[#F2E7D5] bg-white p-1 shadow-[0_1px_2px_rgba(33,29,26,0.04)]"
           role="tablist"
           aria-label="Period"
         >
@@ -378,7 +410,7 @@ function PeriodPicker({
           onClick={onRefresh}
           disabled={busy}
           aria-label="Refresh"
-          className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#ece6de] bg-white text-gray-600 shadow-[0_1px_2px_rgba(33,29,26,0.04)] hover:bg-gray-50 disabled:opacity-50"
+          className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#F2E7D5] bg-white text-gray-600 shadow-[0_1px_2px_rgba(33,29,26,0.04)] hover:bg-gray-50 disabled:opacity-50"
         >
           <RefreshCw size={16} className={busy ? "animate-spin" : ""} />
         </button>
@@ -569,7 +601,7 @@ function TrendChart({ data }: { data: TrendPoint[] }) {
           minTickGap={20}
         />
         <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: AXIS_INK }} tickLine={false} axisLine={false} width={44} />
-        <Tooltip cursor={{ stroke: "#cfc6bb", strokeWidth: 1 }} content={<TrendTooltip />} />
+        <Tooltip cursor={{ stroke: "#ECDFCC", strokeWidth: 1 }} content={<TrendTooltip />} />
         <Area
           type="monotone"
           dataKey="positive"
@@ -612,7 +644,7 @@ function TrendTooltip({ active, payload, label }: TooltipProps<number, string>) 
     { name: "Negative", value: point.negative, color: SENTIMENT_COLORS.negative },
   ];
   return (
-    <div className="min-w-[10rem] rounded-xl border border-[#ece6de] bg-white/95 px-3 py-2.5 text-xs shadow-lg backdrop-blur">
+    <div className="min-w-[10rem] rounded-xl border border-[#F2E7D5] bg-white/95 px-3 py-2.5 text-xs shadow-lg backdrop-blur">
       <p className="mb-1.5 font-semibold text-gray-900">{label}</p>
       {rows.map((r) => (
         <p key={r.name} className="flex items-center justify-between gap-4 py-0.5 text-gray-600">
@@ -693,7 +725,7 @@ function AttentionRow({ item, order, onOpen }: { item: FeedbackItem; order: numb
       <button
         type="button"
         onClick={onOpen}
-        className="group flex w-full items-start gap-3 rounded-xl border border-transparent p-3 text-left transition-colors hover:border-[#ece6de] hover:bg-[#faf7f2]"
+        className="group flex w-full items-start gap-3 rounded-xl border border-transparent p-3 text-left transition-colors hover:border-[#F2E7D5] hover:bg-[#FFFBF5]"
       >
         <span
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold"
@@ -724,5 +756,241 @@ function AttentionRow({ item, order, onOpen }: { item: FeedbackItem; order: numb
         </span>
       </button>
     </Reveal>
+  );
+}
+
+
+/* -------------------------------------------------------------------------------------------- */
+/* HR insights: feedback by type, new-joiner check-ins, exits, how it was given */
+
+/** Fold the AI's free-form topic tags onto the app's fixed themes, then keep the biggest few. */
+function foldTopics(rows: Array<{ topic: string; count: number }>, limit = 5): Array<{ topic: string; count: number }> {
+  const merged = new Map<string, number>();
+  for (const row of rows) {
+    const label = canonicalTopicFromTag(row.topic) ?? row.topic;
+    merged.set(label, (merged.get(label) ?? 0) + row.count);
+  }
+  return [...merged.entries()]
+    .map(([topic, count]) => ({ topic, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, limit);
+}
+
+function formatTenure(months: number): string {
+  if (!months) return "-";
+  return months >= 12 ? `${(months / 12).toFixed(1)} years` : `${Math.round(months)} months`;
+}
+
+function StatLine({ label, value, tone }: { label: string; value: ReactNode; tone?: "warn" | "bad" }) {
+  const color = tone === "bad" ? SENTIMENT_COLORS.negative : tone === "warn" ? "#B45309" : undefined;
+  return (
+    <div className="flex items-baseline justify-between gap-3 text-sm">
+      <span className="text-gray-600">{label}</span>
+      <span className="font-semibold tabular-nums text-gray-900" style={color ? { color } : undefined}>
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function TopicBars({ rows, color, empty, keyPrefix }: { rows: Array<{ topic: string; count: number }>; color: string; empty: string; keyPrefix: string }) {
+  if (!rows.length) return <p className="py-3 text-sm text-gray-500">{empty}</p>;
+  return (
+    <ol className="space-y-3">
+      {rows.map((row, i) => (
+        <li key={`${keyPrefix}-${row.topic}`}>
+          <div className="flex items-baseline gap-3 text-sm">
+            <span className="min-w-0 flex-1 truncate font-medium text-gray-800">{row.topic}</span>
+            <span className="shrink-0 font-semibold tabular-nums text-gray-900">{row.count}</span>
+          </div>
+          <div className="mt-1">
+            <GrowBar pct={(row.count / rows[0].count) * 100} color={color} delay={0.05 * i} />
+          </div>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function HrInsights({ hr, loading, periodKey }: { hr: HrAnalytics | null; loading: boolean; periodKey: string }) {
+  if (loading) {
+    return (
+      <section className="grid grid-cols-1 gap-4 sm:gap-6 xl:grid-cols-3" aria-label="HR insights">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className={`${CARD} p-5 sm:p-6`}>
+            <Skeleton className="h-40 w-full" />
+          </div>
+        ))}
+      </section>
+    );
+  }
+  if (!hr) return null;
+
+  const typeIcon = { new_joiner: UserPlus, relieving: LogOut, general: MessageSquareText } as const;
+  const { newJoiners, exits, channels } = hr;
+  const channelTotal = channels.standard + channels.voice + channels.bot;
+  const concerns = foldTopics(newJoiners.topConcerns);
+  const reasons = foldTopics(exits.reasonTopics);
+  const maxBand = Math.max(1, ...exits.tenureBands.map((b) => b.count));
+
+  return (
+    <>
+      <section className="grid grid-cols-1 gap-4 sm:gap-6 xl:grid-cols-3" aria-label="Feedback by type">
+        {hr.byType.map((row, i) => {
+          const Icon = typeIcon[row.type];
+          const analysed = row.positive + row.neutral + row.negative;
+          return (
+            <Reveal key={row.type} order={7 + i} className={`${CARD} p-5 sm:p-6`}>
+              <CardHeading icon={<Icon size={16} />} title={row.label} subtitle="Feedback in this period" />
+              <div className="mt-4 flex items-end justify-between gap-3">
+                <p className="text-4xl font-semibold leading-none tracking-tight text-gray-900">
+                  <AnimatedNumber value={row.total} />
+                </p>
+                <p className="flex items-center gap-1 text-sm text-gray-600">
+                  <Star size={14} className="text-amber-500" fill="currentColor" />
+                  <span className="font-semibold tabular-nums text-gray-900">{row.total ? row.averageRating.toFixed(1) : "-"}</span>
+                  <span className="text-gray-400">/ 5</span>
+                </p>
+              </div>
+              <div className="mt-4">
+                <SegmentBar
+                  key={periodKey}
+                  height={12}
+                  segments={[
+                    { key: "p", label: "Positive", value: row.positive, color: SENTIMENT_COLORS.positive },
+                    { key: "u", label: "Neutral", value: row.neutral, color: SENTIMENT_COLORS.neutral },
+                    { key: "n", label: "Negative", value: row.negative, color: SENTIMENT_COLORS.negative },
+                  ]}
+                />
+              </div>
+              <p className="mt-2 text-xs text-gray-500">
+                {analysed
+                  ? `${row.positive} positive · ${row.neutral} neutral · ${row.negative} negative`
+                  : row.total
+                    ? "Still being analysed"
+                    : "No feedback yet"}
+              </p>
+            </Reveal>
+          );
+        })}
+      </section>
+
+      <section className="grid grid-cols-1 gap-4 sm:gap-6 xl:grid-cols-2" aria-label="New joiners and exits">
+        <Reveal order={11} className={`${CARD} p-5 sm:p-6`}>
+          <CardHeading icon={<UserPlus size={16} />} title="New joiner check-ins" subtitle="15-day stay interviews" />
+          {newJoiners.count ? (
+            <div className="mt-4 space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <p className="text-4xl font-semibold leading-none tracking-tight text-gray-900">
+                    <AnimatedNumber value={newJoiners.count} />
+                  </p>
+                  <p className="mt-1 text-sm text-gray-500">check-ins</p>
+                </div>
+                <div>
+                  <p
+                    className="text-4xl font-semibold leading-none tracking-tight"
+                    style={{ color: newJoiners.blockers ? SENTIMENT_COLORS.negative : undefined }}
+                  >
+                    <AnimatedNumber value={newJoiners.blockers} />
+                  </p>
+                  <p className="mt-1 text-sm text-gray-500">with a blocker ({newJoiners.blockerRate}%)</p>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <StatLine label="Negative overall" value={newJoiners.withConcerns} />
+                <StatLine label="Average days since joining" value={newJoiners.averageDaysSinceJoining || "-"} />
+              </div>
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Top concerns</p>
+                <TopicBars rows={concerns} color={SENTIMENT_COLORS.negative} empty="No concerns raised." keyPrefix="nj" />
+              </div>
+            </div>
+          ) : (
+            <Empty>No new joiner feedback in this period.</Empty>
+          )}
+        </Reveal>
+
+        <Reveal order={12} className={`${CARD} p-5 sm:p-6`}>
+          <CardHeading icon={<LogOut size={16} />} title="Exit insights" subtitle="Relieving employees" />
+          {exits.count ? (
+            <div className="mt-4 space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <p className="text-4xl font-semibold leading-none tracking-tight text-gray-900">
+                    <AnimatedNumber value={exits.count} />
+                  </p>
+                  <p className="mt-1 text-sm text-gray-500">exit interviews</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-semibold leading-none tracking-tight text-gray-900">
+                    {formatTenure(exits.averageTenureMonths)}
+                  </p>
+                  <p className="mt-1 text-sm text-gray-500">average time with us</p>
+                </div>
+              </div>
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">How long they stayed</p>
+                <ul className="space-y-2">
+                  {exits.tenureBands.map((band, i) => (
+                    <li key={band.key} className="flex items-center gap-3 text-sm">
+                      <span className="w-32 shrink-0 text-gray-600">{band.label}</span>
+                      <span className="flex-1">
+                        <GrowBar pct={(band.count / maxBand) * 100} color={THEME_CHART.primary} delay={0.05 * i} />
+                      </span>
+                      <span className="w-6 shrink-0 text-right font-semibold tabular-nums text-gray-900">{band.count}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Main reasons for leaving</p>
+                <TopicBars rows={reasons} color={SENTIMENT_COLORS.negative} empty="No reasons recorded." keyPrefix="ex" />
+              </div>
+              {exits.leavingSoon ? <StatLine label="Still to leave (last day ahead)" value={exits.leavingSoon} /> : null}
+            </div>
+          ) : (
+            <Empty>No exit interviews in this period.</Empty>
+          )}
+        </Reveal>
+      </section>
+
+      <Reveal order={13} className={`${CARD} p-5 sm:p-6`}>
+        <CardHeading icon={<Users size={16} />} title="Reach and channels" subtitle="Who gave feedback, and how" />
+        <div className="mt-4 grid grid-cols-1 gap-5 md:grid-cols-4">
+          <div>
+            <p className="text-3xl font-semibold leading-none tracking-tight text-gray-900">
+              <AnimatedNumber value={hr.uniqueEmployees} />
+            </p>
+            <p className="mt-1 text-sm text-gray-500">different employees</p>
+          </div>
+          <div className="md:col-span-3">
+            <SegmentBar
+              key={periodKey}
+              height={12}
+              segments={[
+                { key: "typed", label: "Typed", value: channels.standard, color: THEME_CHART.ink },
+                { key: "voice", label: "Voice", value: channels.voice, color: THEME_CHART.accent },
+                { key: "bot", label: "AI voice guide", value: channels.bot, color: THEME_CHART.primary },
+              ]}
+            />
+            <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-sm text-gray-600">
+              {[
+                { label: "Typed", value: channels.standard, color: THEME_CHART.ink },
+                { label: "Voice", value: channels.voice, color: THEME_CHART.accent },
+                { label: "AI voice guide", value: channels.bot, color: THEME_CHART.primary },
+              ].map((c) => (
+                <span key={c.label} className="inline-flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: c.color }} />
+                  {c.label}
+                  <span className="font-semibold tabular-nums text-gray-900">{c.value}</span>
+                  <span className="text-gray-400">({channelTotal ? Math.round((c.value / channelTotal) * 100) : 0}%)</span>
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      </Reveal>
+    </>
   );
 }

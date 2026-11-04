@@ -1,7 +1,5 @@
-import { Navigate, Outlet, useLocation, useOutletContext } from "react-router";
+import { Navigate, Outlet, useLocation } from "react-router";
 import { getSession } from "../lib/auth";
-import { useModuleEnabled } from "../lib/branding";
-import type { ModuleFlag } from "../lib/api";
 import { employeeRoutes } from "../lib/employeeRoutes";
 
 /**
@@ -15,11 +13,7 @@ import { employeeRoutes } from "../lib/employeeRoutes";
 
 export const CAPABILITY = {
   FEEDBACK_READ_ALL: "feedback.read.all",
-  FEEDBACK_READ_ASSIGNED: "feedback.read.assigned",
-  FEEDBACK_ASSIGN: "feedback.assign",
-  FEEDBACK_RESOLVE: "feedback.resolve",
   FEEDBACK_DELETE: "feedback.delete",
-  CAPA_WRITE: "capa.write",
   INSIGHTS_VIEW: "insights.view",
   INSIGHTS_OVERVIEW: "insights.overview",
   REPORTS_GENERATE: "reports.generate",
@@ -30,7 +24,7 @@ export const CAPABILITY = {
   SETTINGS_MANAGE: "settings.manage",
   BRANDING_MANAGE: "branding.manage",
   MAINTENANCE_RUN: "maintenance.run",
-  FEATURES_MANAGE: "features.manage",
+  AUDIT_VIEW: "audit.view",
 } as const;
 
 function sessionCapabilities(): string[] {
@@ -77,24 +71,6 @@ export function RequireCapability({ anyOf }: { anyOf: string[] }) {
   return <Outlet />;
 }
 
-/**
- * Ticket screens only exist while a Super Admin has the ticketing module on.
- * Waits for settings to load so a deep link isn't bounced before the flag arrives.
- */
-/** Renders its child routes only while the given module is switched on. */
-function RequireModule({ module }: { module: ModuleFlag }) {
-  const { enabled, loaded } = useModuleEnabled(module);
-  // Pass the parent's outlet context through — the insights tabs read InsightsHub's data from it.
-  const parentContext = useOutletContext();
-  if (!loaded) return null;
-  if (!enabled) return <Navigate to={landingRouteForSession()} replace />;
-  return <Outlet context={parentContext} />;
-}
-
-export function RequireTicketing() {
-  return <RequireModule module="ticketingEnabled" />;
-}
-
 /** First insights tab the session may open: the overview when allowed, else submissions. */
 export function insightsLandingPath(basePath: string): string {
   return hasCapability(CAPABILITY.INSIGHTS_OVERVIEW)
@@ -110,10 +86,8 @@ export function landingRouteForSession(): string {
   if (held.includes(CAPABILITY.ROLES_MANAGE) || held.includes(CAPABILITY.USERS_MANAGE)) {
     return "/admin";
   }
-  // Staff, management and HODs share the Dashboard; the server limits a HOD's data to their departments.
   if (held.includes(CAPABILITY.INSIGHTS_VIEW)) return "/insights";
-  if (held.includes(CAPABILITY.FEEDBACK_READ_ASSIGNED)) return "/dashboard";
-  if (held.includes(CAPABILITY.FEEDBACK_READ_ALL)) return "/dashboard";
+  if (held.includes(CAPABILITY.FEEDBACK_READ_ALL)) return "/admin";
   return employeeRoutes.home;
 }
 
@@ -144,6 +118,7 @@ export function AdminGuard() {
   const required: Array<[string, string[]]> = [
     ["/admin/users", [CAPABILITY.USERS_MANAGE]],
     ["/admin/roles", [CAPABILITY.ROLES_MANAGE]],
+    ["/admin/audit", [CAPABILITY.AUDIT_VIEW]],
     ["/admin/settings", [CAPABILITY.SETTINGS_MANAGE, CAPABILITY.BRANDING_MANAGE]],
     ["/admin/bot-conversation", [CAPABILITY.SETTINGS_MANAGE]],
   ];

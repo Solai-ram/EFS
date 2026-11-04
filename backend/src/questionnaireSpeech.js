@@ -9,22 +9,27 @@
  * free text, so the public endpoint cannot be used to spend Sarvam credit on arbitrary speech.
  */
 import { HOSPITAL } from "./hospital.js";
-import { FEEDBACK_TYPES, getQuestionnaire } from "./employeeQuestionnaires.js";
+import { FEEDBACK_TYPES, getCustomIntro, getQuestionnaire } from "./employeeQuestionnaires.js";
 
 const SARVAM_TTS_URL = "https://api.sarvam.ai/text-to-speech";
 const LOCALES = { en: "en-IN", ta: "ta-IN" };
 
-/** What the AI says before the first question, per language. */
-export function introText(feedbackType, lang) {
+/** Built-in intro, used when the admin has not written one. */
+export function defaultIntroText(feedbackType, lang) {
   const place = lang === "ta" ? HOSPITAL.nameTaLocative : HOSPITAL.name;
   if (lang === "ta") {
     return feedbackType === "relieving"
       ? `வணக்கம்! ${place} உங்கள் பணிக்காலம் பற்றிய சில கேள்விகளைக் கேட்கிறோம். ஒவ்வொரு கேள்விக்கும் பிறகு சிறிது நேரம் யோசித்து, உங்கள் பதிலைச் சொல்லுங்கள்.`
-      : `வணக்கம்! ${place} உங்கள் முதல் வாரங்களின் அனுபவத்தைப் பற்றி சில கேள்விகளைக் கேட்கிறோம். ஒவ்வொரு கேள்விக்கும் பிறகு சிறிது நேரம் யோசித்து, உங்கள் பதிலைச் சொல்லுங்கள்.`;
+      : `வணக்கம்! ${place} உங்கள் முதல் 15 நாட்களின் அனுபவத்தைப் பற்றி சில கேள்விகளைக் கேட்கிறோம். ஒவ்வொரு கேள்விக்கும் பிறகு சிறிது நேரம் யோசித்து, உங்கள் பதிலைச் சொல்லுங்கள்.`;
   }
   return feedbackType === "relieving"
     ? `Hello! At ${place} we would like to ask you a few questions about your time with us. After each question, take a moment to think, then speak your answer.`
-    : `Hello! At ${place} we would like to ask you a few questions about your first weeks. After each question, take a moment to think, then speak your answer.`;
+    : `Hello! At ${place} we would like to ask you a few questions about your first 15 days. After each question, take a moment to think, then speak your answer.`;
+}
+
+/** What the AI says before the first question: the admin's text if set, else the built-in intro. */
+export function introText(feedbackType, lang) {
+  return getCustomIntro(feedbackType, lang) || defaultIntroText(feedbackType, lang);
 }
 
 const cache = new Map();

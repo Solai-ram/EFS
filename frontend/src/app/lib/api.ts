@@ -249,6 +249,93 @@ export async function getQuestionnaire(type: FeedbackType): Promise<Questionnair
   return (body as { questions: QuestionnaireQuestion[] }).questions;
 }
 
+export interface AdminQuestionnaireQuestion {
+  id: string;
+  section: string;
+  textEn: string;
+  textTa: string;
+  required: boolean;
+  /** An answer to this question is an immediate blocker: it raises a ticket straight away. */
+  blocker: boolean;
+}
+
+export interface AdminQuestionnaire {
+  type: "new_joiner" | "relieving";
+  /** False while the built-in questions are in use. */
+  customised: boolean;
+  sections: string[];
+  questions: AdminQuestionnaireQuestion[];
+  defaultQuestions: AdminQuestionnaireQuestion[];
+  intro: { en: string; ta: string; defaultEn: string; defaultTa: string };
+}
+
+export async function getAdminQuestionnaire(type: AdminQuestionnaire["type"]): Promise<AdminQuestionnaire> {
+  const response = await apiFetch(`${API_BASE_URL}/api/admin/questionnaires/${type}`, { cache: "no-store" });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(readApiErrorMessage(body) || "Could not load the questions");
+  return body as AdminQuestionnaire;
+}
+
+export async function saveAdminQuestionnaire(
+  type: AdminQuestionnaire["type"],
+  payload: { intro: { en: string; ta: string }; questions: AdminQuestionnaireQuestion[] }
+): Promise<AdminQuestionnaire> {
+  const response = await apiFetch(`${API_BASE_URL}/api/admin/questionnaires/${type}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(readApiErrorMessage(body) || "Could not save the questions");
+  return body as AdminQuestionnaire;
+}
+
+export async function resetAdminQuestionnaire(type: AdminQuestionnaire["type"]): Promise<AdminQuestionnaire> {
+  const response = await apiFetch(`${API_BASE_URL}/api/admin/questionnaires/${type}/reset`, { method: "POST" });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(readApiErrorMessage(body) || "Could not reset the questions");
+  return body as AdminQuestionnaire;
+}
+
+export interface HrAnalytics {
+  totalSessions: number;
+  uniqueEmployees: number;
+  byType: Array<{
+    type: FeedbackType;
+    label: string;
+    total: number;
+    positive: number;
+    neutral: number;
+    negative: number;
+    averageRating: number;
+  }>;
+  newJoiners: {
+    count: number;
+    blockers: number;
+    blockerRate: number;
+    withConcerns: number;
+    averageDaysSinceJoining: number;
+    topConcerns: Array<{ topic: string; count: number }>;
+  };
+  exits: {
+    count: number;
+    averageTenureMonths: number;
+    tenureBands: Array<{ key: string; label: string; count: number }>;
+    reasonTopics: Array<{ topic: string; count: number }>;
+    leavingSoon: number;
+  };
+  channels: { standard: number; voice: number; bot: number };
+}
+
+export async function getHrAnalytics(startMs: number, endMs: number): Promise<HrAnalytics> {
+  const response = await apiFetch(`${API_BASE_URL}/api/analytics/hr?startMs=${startMs}&endMs=${endMs}`, {
+    cache: "no-store",
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(readApiErrorMessage(body) || "Could not load HR analytics");
+  return body as HrAnalytics;
+}
+
 export async function getApiHealth(): Promise<{ ok: boolean; openRouterConfigured?: boolean }> {
   const response = await apiFetch(`${API_BASE_URL}/api/health`, { cache: "no-store" });
   const body = await response.json().catch(() => ({}));
@@ -532,101 +619,12 @@ export async function getFeedbackById(id: string): Promise<FeedbackItem> {
   return body as FeedbackItem;
 }
 
-export async function updateFeedbackStatus(
-  id: string,
-  status: FeedbackItem["status"],
-  options?: { resolutionNote?: string; capa?: CapaInput }
-): Promise<FeedbackItem> {
-  const response = await apiFetch(`${API_BASE_URL}/api/feedback/${id}/status`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      status,
-      ...(options?.resolutionNote != null
-        ? { resolutionNote: options.resolutionNote }
-        : {}),
-      ...(options?.capa ? { capa: options.capa } : {}),
-    }),
-  });
-
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(readApiErrorMessage(body) || "Could not update status");
-  }
-
-  return body as FeedbackItem;
-}
-
-export type BulkAcknowledgeResult = {
-  requested: number;
-  acknowledged: number;
-  skipped: number;
-};
-
-/**
- * New -> In Progress for many tickets in one request, no CAPA (bulk-Resolved
- * isn't offered — that needs a CAPA per ticket). Tickets not currently "New",
- * or not owned by a queue-scoped caller, are silently excluded server-side and
- * counted in `skipped` rather than causing the whole batch to fail.
- */
-export async function bulkAcknowledgeFeedback(ids: string[]): Promise<BulkAcknowledgeResult> {
-  const response = await apiFetch(`${API_BASE_URL}/api/feedback/bulk-acknowledge`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ids }),
-  });
-
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(readApiErrorMessage(body) || "Could not acknowledge tickets");
-  }
-
-  return body as BulkAcknowledgeResult;
-}
-
-/**
- * Thrown when the chosen head does not own the ticket's department or service.
- * The assignment is legal (complaints often route to Housekeeping or Transport
- * rather than the clinical department) but the caller has to confirm it.
- */
-export class CrossDepartmentAssignmentError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "CrossDepartmentAssignmentError";
-  }
-}
-
-export async function assignFeedbackTicket(
-  id: string,
-  userId: string | null,
-  options: { confirmCrossDepartment?: boolean } = {}
-): Promise<FeedbackItem> {
-  const response = await apiFetch(`${API_BASE_URL}/api/feedback/${id}/assign`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      userId,
-      ...(options.confirmCrossDepartment ? { confirmCrossDepartment: true } : {}),
-    }),
-  });
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    if (response.status === 409 && (body as { requiresConfirmation?: boolean }).requiresConfirmation) {
-      throw new CrossDepartmentAssignmentError(
-        readApiErrorMessage(body) || "This head does not own the ticket's department."
-      );
-    }
-    throw new Error(readApiErrorMessage(body) || "Could not update assignment");
-  }
-  return body as FeedbackItem;
-}
-
 export async function deleteFeedback(id: string): Promise<void> {
   const response = await apiFetch(`${API_BASE_URL}/api/feedback/${id}`, {
     method: "DELETE",
   });
 
-  // 404 means it is already gone (e.g. a split issue removed with its submission).
+  // 404 means it is already gone.
   if (!response.ok && response.status !== 404) {
     throw new Error("Could not delete feedback");
   }
@@ -718,29 +716,6 @@ export async function triggerSummaryReportGenerate(
     throw new Error(readApiErrorMessage(body) || "Could not generate summary report");
   }
   return body as SummaryReport;
-}
-
-export async function seedOpenNegativeTickets(): Promise<{
-  updated: number;
-  negativeWithTicket: number;
-}> {
-  const response = await apiFetch(`${API_BASE_URL}/api/seed/open-negative-tickets`, {
-    method: "POST",
-  });
-  if (!response.ok) {
-    throw new Error("Could not open tickets for negative AI sentiment");
-  }
-  return response.json();
-}
-
-export async function repairSplitTickets(): Promise<{ scanned: number; created: number }> {
-  const response = await apiFetch(`${API_BASE_URL}/api/feedback/repair-split-children`, {
-    method: "POST",
-  });
-  if (!response.ok) {
-    throw new Error("Could not repair split tickets");
-  }
-  return response.json();
 }
 
 export interface DepartmentService {
@@ -959,6 +934,55 @@ export async function getRoles(): Promise<{
   return response.json();
 }
 
+export type AuditLogRow = {
+  id: string;
+  at: string;
+  actorUsername: string;
+  actorRole: string;
+  action: string;
+  actionLabel: string;
+  targetType: string;
+  targetId: string;
+  summary: string;
+  ip: string;
+  success: boolean;
+};
+
+export type AuditLogPage = {
+  total: number;
+  page: number;
+  limit: number;
+  actions: Record<string, string>;
+  rows: AuditLogRow[];
+};
+
+export async function getAuditLog(params: {
+  page?: number;
+  limit?: number;
+  action?: string;
+  user?: string;
+  q?: string;
+  from?: string;
+  to?: string;
+}): Promise<AuditLogPage> {
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== "") search.set(key, String(value));
+  }
+  const response = await apiFetch(`${API_BASE_URL}/api/admin/audit-log?${search.toString()}`);
+  if (!response.ok) throw new Error("Could not load the audit log");
+  return response.json();
+}
+
+/** Tell the server a file was exported (the download itself happens in the browser). Never blocks the export. */
+export function reportExport(rows: number, scope: string): void {
+  void apiFetch(`${API_BASE_URL}/api/audit/export`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ rows, scope }),
+  }).catch(() => undefined);
+}
+
 export async function updateRoleCapabilities(
   key: string,
   capabilities: string[]
@@ -1042,21 +1066,6 @@ export async function getBrandingSettingsApi(): Promise<BrandingSettings> {
   });
   if (!response.ok) {
     throw new Error("Could not load branding");
-  }
-  return response.json();
-}
-
-export async function saveFeatureSettingsApi(
-  payload: Partial<Record<ModuleFlag, boolean>>
-): Promise<BrandingSettings> {
-  const response = await apiFetch(`${API_BASE_URL}/api/settings/features`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error((err as { message?: string }).message || "Could not save module settings");
   }
   return response.json();
 }

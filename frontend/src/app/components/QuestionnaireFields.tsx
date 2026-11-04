@@ -12,7 +12,7 @@ type Props = {
   lang?: QuestionnaireLanguage;
 };
 
-const SECTION_TITLES: Record<string, { en: string; ta: string }> = {
+export const SECTION_TITLES: Record<string, { en: string; ta: string }> = {
   pulse: { en: 'The "Pulse Check"', ta: "பகுதி 1: பணியைப் பற்றிய கேள்விகள்" },
   training: { en: "Training & Onboarding", ta: "பகுதி A: பயிற்சி மற்றும் வழிகாட்டுதல்" },
   role: { en: "Role & Alignment", ta: "பகுதி B: வேலை மற்றும் அனுபவம்" },
@@ -70,7 +70,7 @@ export function QuestionnaireFields({ questions, answers, onChange, primaryColor
 
             <div
               className="rounded-2xl border bg-white p-4 md:p-5"
-              style={{ borderColor: accent ? `${accent}66` : "#E8E1D9" }}
+              style={{ borderColor: accent ? `${accent}66` : "#ECDFCC" }}
             >
               <label
                 className="block text-base font-semibold leading-snug text-gray-900"

@@ -1,36 +1,29 @@
 import type { LucideIcon } from "lucide-react";
-import { AudioLines, Bot, Keyboard } from "lucide-react";
+import { AudioLines, Keyboard } from "lucide-react";
 import { employeeRoutes } from "./employeeRoutes";
 
 export type FeedbackModeChoice = {
-  id: "bot" | "voice" | "type";
+  id: "voice" | "type";
   icon: LucideIcon;
   title: string;
   subtitle: string;
   path: string;
 };
 
-/** Employee feedback entry — keep titles short; subtitles align card height. */
+/** General feedback has two ways in: speak freely, or type freely. */
 export const feedbackModeChoices: FeedbackModeChoice[] = [
-  {
-    id: "bot",
-    icon: Bot,
-    title: "AI Voice Guide",
-    subtitle: "Tamil Q&A",
-    path: employeeRoutes.bot,
-  },
   {
     id: "voice",
     icon: AudioLines,
-    title: "Voice feedback",
-    subtitle: "Speak freely",
+    title: "Speak freely",
+    subtitle: "Say it in your own words",
     path: employeeRoutes.giveVoice,
   },
   {
     id: "type",
     icon: Keyboard,
-    title: "Rate & share",
-    subtitle: "Rating + comments",
+    title: "Type freely",
+    subtitle: "Write it in your own words",
     path: employeeRoutes.give,
   },
 ];

@@ -58,7 +58,7 @@ export function BotConversationFeedbackSection({
   if (!sorted.length) {
     return (
       <p className="text-sm text-amber-700 rounded-lg border border-amber-100 bg-amber-50 p-3">
-        Bot conversation was submitted but no question answers are stored for this ticket.
+        Bot conversation was submitted but no question answers are stored for this feedback.
       </p>
     );
   }

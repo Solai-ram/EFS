@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useSearchParams } from "react-router";
 import * as XLSX from "xlsx";
-import { deleteFeedback, getFeedback, type FeedbackItem } from "../lib/api";
+import { deleteFeedback, getFeedback, reportExport, type FeedbackItem } from "../lib/api";
 import { fetchFeedbackChanges, fetchFeedbackList, mergeFeedbackLists } from "../lib/feedbackListSync";
 import {
   feedbackCacheKey,
@@ -157,10 +157,10 @@ export function FeedbackListPage({ basePath }: FeedbackListPageProps) {
       const rows = groupItems?.length ? groupItems : [item];
       const submissions = rows.filter((row) => !row.isSplitChild);
       const targets = submissions.length ? submissions : rows;
-      const who = item.employeeName?.trim() || item.ticketId || item._id;
+      const who = item.employeeName?.trim() || item._id;
       const what =
         targets.length > 1 ? `${targets.length} submissions from ${who}` : `the feedback from ${who}`;
-      if (!window.confirm(`Delete ${what}? Any split issues are removed too. This cannot be undone.`)) {
+      if (!window.confirm(`Delete ${what}? This cannot be undone.`)) {
         return;
       }
       setError(null);
@@ -205,7 +205,6 @@ export function FeedbackListPage({ basePath }: FeedbackListPageProps) {
       dateOfJoining: item.dateOfJoining || "",
       lastWorkingDay: item.lastWorkingDay || "",
       department: item.department || "",
-      service: item.service || "",
       rating: item.rating,
       aiSentiment: item.aiSentiment || "",
       comments: item.comments || "",
@@ -215,6 +214,7 @@ export function FeedbackListPage({ basePath }: FeedbackListPageProps) {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, sheet, "Feedback");
     XLSX.writeFile(workbook, fileName);
+    reportExport(rows.length, fileName.startsWith("feedback-all") ? "all feedback" : "filtered list");
   }
 
   function downloadAllFeedbackExcel() {

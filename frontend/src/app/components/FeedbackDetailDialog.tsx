@@ -15,10 +15,9 @@ import {
 } from "../lib/feedbackDisplay";
 import { BotConversationFeedbackSection } from "./BotConversationFeedbackSection";
 import { VoiceAudioPlayer } from "./VoiceAudioPlayer";
-import { ticketDepartment, ticketService } from "../lib/ticketFilters";
+import { ticketDepartment } from "../lib/ticketFilters";
 import { displayOptionalLabel } from "../lib/fieldSanitize";
 import { filterAiTopicsForTranscript } from "../lib/aiTopicsFilter";
-import { useTicketingEnabled } from "../lib/branding";
 
 const ratingLabel: Record<number, string> = {
   1: "Very Poor",
@@ -42,7 +41,6 @@ export function FeedbackDetailDialog({ item, open, onOpenChange }: FeedbackDetai
   const [fullItem, setFullItem] = useState<FeedbackItem | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [voiceAudioVisible, setVoiceAudioVisible] = useState(true);
-  const { enabled: ticketingEnabled } = useTicketingEnabled();
 
   useEffect(() => {
     if (!open || !item?._id) {
@@ -97,12 +95,11 @@ export function FeedbackDetailDialog({ item, open, onOpenChange }: FeedbackDetai
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl">Feedback details</DialogTitle>
           <p className="text-sm text-gray-500">
             {display.employeeName} · {new Date(display.createdAt).toLocaleString()}
-            {display.ticketId ? ` · ${display.ticketId}` : ""}
           </p>
         </DialogHeader>
 
@@ -118,9 +115,6 @@ export function FeedbackDetailDialog({ item, open, onOpenChange }: FeedbackDetai
             <span className="px-2 py-1 rounded-md bg-gray-100 text-gray-700">
               Rating: {display.rating} · {ratingLabel[display.rating] ?? "—"}
             </span>
-            {ticketingEnabled ? (
-              <span className="px-2 py-1 rounded-md bg-gray-100 text-gray-700">{display.status}</span>
-            ) : null}
             {displaySentimentForItem(display) ? (
               <span
                 className={`px-2 py-1 rounded-md capitalize ${
@@ -136,17 +130,11 @@ export function FeedbackDetailDialog({ item, open, onOpenChange }: FeedbackDetai
             ) : null}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-            <div>
-              <p className="text-gray-500">Department</p>
-              <p className="font-medium text-gray-800">
-                {displayOptionalLabel(ticketDepartment(display) || display.department)}
-              </p>
-            </div>
-            <div>
-              <p className="text-gray-500">Service</p>
-              <p className="font-medium text-gray-800">{ticketService(display) || "—"}</p>
-            </div>
+          <div className="text-sm">
+            <p className="text-gray-500">Department</p>
+            <p className="font-medium text-gray-800">
+              {displayOptionalLabel(ticketDepartment(display) || display.department)}
+            </p>
           </div>
 
           <section className="rounded-xl border-2 border-primary/30 bg-gradient-to-r from-purple-50 to-brand-50 p-4">
@@ -168,12 +156,6 @@ export function FeedbackDetailDialog({ item, open, onOpenChange }: FeedbackDetai
                 ))}
               </div>
             )}
-            {display.isSplitChild ? (
-              <p className="text-xs text-gray-500 mt-2">
-                This is one service ticket from a longer voice message. Speech-to-text below is the full
-                voice session.
-              </p>
-            ) : null}
           </section>
 
           {isBot ? (
@@ -181,13 +163,7 @@ export function FeedbackDetailDialog({ item, open, onOpenChange }: FeedbackDetai
               answers={botAnswers}
               combinedSessionUrl={display.voiceRecordingUrl}
               fullTranscript={display.comments}
-              groupNote={
-                display.isSplitChild
-                  ? "Full bot conversation for this employee. This row is one service from that session."
-                  : display.botVoiceSourceFeedbackId
-                    ? "Voice Q&A from linked bot submission."
-                    : null
-              }
+              groupNote={display.botVoiceSourceFeedbackId ? "Voice Q&A from linked bot submission." : null}
               compact
             />
           ) : (

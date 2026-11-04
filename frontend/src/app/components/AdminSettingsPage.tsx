@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Bot, ChevronRight, Heart, Palette, ToggleRight } from "lucide-react";
+import { Bot, Check, ChevronRight, Heart, Palette } from "lucide-react";
 import { feedbackModeChoices } from "../lib/feedbackModeChoices";
 import feedbackLogo from "./image/hospital_logo.png";
 import { HOSPITAL } from "../lib/hospital";
@@ -9,12 +9,7 @@ import {
   onBrandingSettingsChange,
   resetBrandingSettings,
   saveBrandingSettings,
-  saveModuleEnabled,
-  useModuleEnabled,
 } from "../lib/branding";
-import type { ModuleFlag } from "../lib/api";
-import { CAPABILITY, hasCapability } from "./RouteGuards";
-import { Switch } from "./ui/switch";
 import { FeedbackQrCard } from "./FeedbackQrCard";
 
 function ColorField({
@@ -61,7 +56,7 @@ function ColorField({
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value.trim())}
-        placeholder="#8B1538"
+        placeholder="#DC1A1F"
         className={`w-full font-mono text-sm px-3 py-2 border rounded-lg outline-none uppercase tracking-wide ${
           validHex ? "border-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/20" : "border-amber-400 bg-amber-50"
         }`}
@@ -71,81 +66,20 @@ function ColorField({
   );
 }
 
-const MODULES: Array<{ flag: ModuleFlag; label: string; description: string }> = [
-  {
-    flag: "ticketingEnabled",
-    label: "Ticketing",
-    description:
-      "Ticket management, ticket detail, the Tickets insights tab, the HOD queue and the ticket metrics on the Management overview. Feedback is still recorded while this is off, so existing tickets reappear when it is turned back on.",
-  },
-];
-
-function ModuleSwitchRow({ flag, label, description }: (typeof MODULES)[number]) {
-  const { enabled, loaded } = useModuleEnabled(flag);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const id = `module-${flag.replace(/Enabled$/, "")}`;
-
-  async function toggle(next: boolean) {
-    try {
-      setSaving(true);
-      setError(null);
-      await saveModuleEnabled(flag, next);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save module settings.");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <div className="rounded-lg bg-gray-50 p-3">
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <label htmlFor={id} className="text-sm font-semibold text-gray-800">
-            {label}
-          </label>
-          <p className="text-xs text-gray-500 mt-0.5">{description}</p>
-        </div>
-        <Switch
-          id={id}
-          checked={enabled}
-          disabled={!loaded || saving}
-          onCheckedChange={(next) => void toggle(next)}
-          className="mt-1"
-        />
-      </div>
-      {error ? <p className="mt-2 text-xs text-red-600">{error}</p> : null}
-    </div>
-  );
-}
-
-/** Super Admin only: switches whole modules on or off for every user. Saves on toggle. */
-function ModuleSettingsCard() {
-  return (
-    <div className="rounded-lg border border-gray-200 p-4 space-y-3">
-      <div>
-        <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-          <ToggleRight className="w-5 h-5 text-primary" />
-          Modules
-        </h3>
-        <p className="text-sm text-gray-600 mt-1">
-          Visible to Super Admins only. Changes apply immediately for everyone, without Save
-          settings. Hidden screens keep their data.
-        </p>
-      </div>
-      {MODULES.map((module) => (
-        <ModuleSwitchRow key={module.flag} {...module} />
-      ))}
-    </div>
-  );
-}
+/** Ready-made colour themes. Picking one sets the primary, accent and page background colours. */
+const THEME_PRESETS = [
+  { id: "logo", name: "APH Logo", note: "Crimson and amber, from the logo", primary: "#DC1A1F", accent: "#F7A014", page: "#FFF9F0" },
+  { id: "midnight", name: "Midnight & Gold", note: "Deep navy with gold", primary: "#0F2A43", accent: "#C9A24B", page: "#F8F5EE" },
+  { id: "slate", name: "Slate", note: "Cool blue-grey", primary: "#253745", accent: "#4A5C6A", page: "#E6E9E9" },
+  { id: "maroon", name: "Maroon & Gold", note: "The original APH look", primary: "#8B1538", accent: "#C9A227", page: "#FAF7F2" },
+  { id: "emerald", name: "Emerald & Gold", note: "Deep green with gold", primary: "#0F5C4D", accent: "#D4A62A", page: "#F5F4EC" },
+  { id: "plum", name: "Plum & Rose", note: "Deep plum with dusty rose", primary: "#522B5B", accent: "#854F6C", page: "#FDF0E8" },
+] as const;
 
 export function AdminSettingsPage() {
-  const canManageModules = hasCapability(CAPABILITY.FEATURES_MANAGE);
-  const [brandPrimary, setBrandPrimary] = useState("#8B1538");
-  const [brandAccent, setBrandAccent] = useState("#C9A227");
-  const [brandPageBg, setBrandPageBg] = useState("#FAF7F2");
+  const [brandPrimary, setBrandPrimary] = useState("#DC1A1F");
+  const [brandAccent, setBrandAccent] = useState("#F7A014");
+  const [brandPageBg, setBrandPageBg] = useState("#FFF9F0");
   const [brandLogoDataUrl, setBrandLogoDataUrl] = useState<string | null>(null);
   const [voiceMaxSeconds, setVoiceMaxSeconds] = useState(120);
   const [botThinkSeconds, setBotThinkSeconds] = useState(3);
@@ -185,9 +119,13 @@ export function AdminSettingsPage() {
     };
   }, []);
 
-  async function saveBranding() {
-    if (!/^#[0-9A-Fa-f]{6}$/.test(brandPrimary) || !/^#[0-9A-Fa-f]{6}$/.test(brandAccent) || !/^#[0-9A-Fa-f]{6}$/.test(brandPageBg)) {
-      setBannerMessage("Use valid hex colors like #8B1538 for all theme fields.");
+  /** Saves everything on the page. A theme preset passes its colours here so they apply at once. */
+  async function saveBranding(colors?: { primary: string; accent: string; page: string }) {
+    const primary = colors?.primary ?? brandPrimary;
+    const accent = colors?.accent ?? brandAccent;
+    const page = colors?.page ?? brandPageBg;
+    if (!/^#[0-9A-Fa-f]{6}$/.test(primary) || !/^#[0-9A-Fa-f]{6}$/.test(accent) || !/^#[0-9A-Fa-f]{6}$/.test(page)) {
+      setBannerMessage("Use valid hex colors like #DC1A1F for all theme fields.");
       return;
     }
     try {
@@ -204,16 +142,16 @@ export function AdminSettingsPage() {
         return;
       }
       await saveBrandingSettings({
-        primaryColor: brandPrimary,
-        accentColor: brandAccent,
-        pageBackgroundColor: brandPageBg,
+        primaryColor: primary,
+        accentColor: accent,
+        pageBackgroundColor: page,
         logoDataUrl: brandLogoDataUrl,
         voiceRecordingMaxSeconds: Math.round(secs),
         botThinkSeconds: Math.round(think),
         botSkipIntro,
         botSkipThinkCountdown,
       });
-      setBannerMessage("Settings saved. Employee screens update immediately.");
+      setBannerMessage(colors ? "Theme applied. Every screen now uses it." : "Settings saved. Employee screens update immediately.");
     } catch {
       setBannerMessage("Failed to save theme. Please try again.");
     } finally {
@@ -272,6 +210,13 @@ export function AdminSettingsPage() {
 
   const previewLogo = brandLogoDataUrl || feedbackLogo;
 
+  function chooseTheme(preset: (typeof THEME_PRESETS)[number]) {
+    setBrandPrimary(preset.primary);
+    setBrandAccent(preset.accent);
+    setBrandPageBg(preset.page);
+    void saveBranding({ primary: preset.primary, accent: preset.accent, page: preset.page });
+  }
+
   return (
     <div className="w-full space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -320,15 +265,57 @@ export function AdminSettingsPage() {
             </p>
           ) : null}
 
-          {canManageModules ? <ModuleSettingsCard /> : null}
 
           <div className="rounded-lg border border-gray-200 p-4 space-y-4">
             <div>
               <h3 className="text-lg font-semibold text-gray-800">Color theme</h3>
               <p className="text-sm text-gray-600 mt-1">
-                Primary color for headings and buttons. Accent is the gradient on the welcome heart.
-                Page background is behind the white feedback card.
+                Pick a ready-made theme, or fine-tune the three colors below and press Save settings.
               </p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Color theme">
+              {THEME_PRESETS.map((preset) => {
+                const active =
+                  brandPrimary.toLowerCase() === preset.primary.toLowerCase() &&
+                  brandAccent.toLowerCase() === preset.accent.toLowerCase() &&
+                  brandPageBg.toLowerCase() === preset.page.toLowerCase();
+                return (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    disabled={isSaving}
+                    onClick={() => chooseTheme(preset)}
+                    className="flex items-center gap-3 rounded-xl border bg-white p-3 text-left transition-all hover:-translate-y-0.5 hover:shadow-md disabled:opacity-60"
+                    style={{
+                      borderColor: active ? brandPrimary : "#E5E7EB",
+                      boxShadow: active ? `0 0 0 3px ${brandPrimary}26` : undefined,
+                    }}
+                  >
+                    <span className="flex h-11 w-16 shrink-0 overflow-hidden rounded-lg border border-black/10" aria-hidden="true">
+                      <span className="w-1/2" style={{ backgroundColor: preset.primary }} />
+                      <span className="flex w-1/2 flex-col">
+                        <span className="h-1/2" style={{ backgroundColor: preset.accent }} />
+                        <span className="h-1/2" style={{ backgroundColor: preset.page }} />
+                      </span>
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-semibold text-gray-900">{preset.name}</span>
+                      <span className="block truncate text-xs text-gray-500">{preset.note}</span>
+                    </span>
+                    {active ? (
+                      <span
+                        className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-white"
+                        style={{ backgroundColor: brandPrimary }}
+                      >
+                        <Check size={14} />
+                      </span>
+                    ) : null}
+                  </button>
+                );
+              })}
             </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -340,7 +327,7 @@ export function AdminSettingsPage() {
             />
             <ColorField
               label="Accent color"
-              hint="Welcome heart gradient"
+              hint="Gold highlights, welcome gradient"
               value={brandAccent}
               onChange={setBrandAccent}
             />

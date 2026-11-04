@@ -42,6 +42,7 @@ export function EmployeeIdentitySection({
     },
   };
 
+  const optional = <span className="font-normal text-gray-400"> (optional)</span>;
   const today = todayIso();
 
   return (
@@ -50,7 +51,7 @@ export function EmployeeIdentitySection({
         <div>
           <label className={fieldLabel} htmlFor="efs-employee-name">
             {compact ? "Your name · உங்கள் பெயர்" : "Name"}
-            {required}
+            {identity.nameRequired ? required : optional}
           </label>
           <input
             id="efs-employee-name"
@@ -68,7 +69,7 @@ export function EmployeeIdentitySection({
         <div>
           <label className={fieldLabel} htmlFor="efs-employee-id">
             Employee ID
-            {required}
+            {identity.idRequired ? required : optional}
           </label>
           <input
             id="efs-employee-id"

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Bot, Loader, Mic, Volume2 } from "lucide-react";
+import { Bot, FileText, Loader, Lock, Mic, Volume2 } from "lucide-react";
 import {
   coerceTranscriptText,
   resolveUploadUrl,
@@ -16,6 +16,7 @@ import {
   type QuestionnaireLanguage,
 } from "../lib/questionnaireLanguage";
 import { QuestionnaireFields } from "./QuestionnaireFields";
+import { RelievingLetterDialog, type RelievingLetterData } from "./RelievingLetter";
 
 /**
  * AI Voice Guide for the new-joiner and exit questionnaires. It follows the same conversation as the
@@ -45,8 +46,12 @@ type Props = {
   onSwitchToTyping: () => void;
   /** Tells the form when every question has been asked, so it can show Remark and Submit. */
   onFinishedChange?: (finished: boolean) => void;
+  /** Tells the form when the conversation has begun (true) or is back at the start card (false). */
+  onStartedChange?: (started: boolean) => void;
   /** False until the employee's details are filled in; the guide will not start before then. */
   canStart?: boolean;
+  /** Exit interviews only: the data for the relieving letter. It unlocks when the last question is done. */
+  letter?: RelievingLetterData;
 };
 
 const sleep = (ms: number) => new Promise<void>((resolve) => window.setTimeout(resolve, ms));
@@ -104,7 +109,9 @@ export function QuestionnaireVoiceGuide({
   lang,
   onSwitchToTyping,
   onFinishedChange,
+  onStartedChange,
   canStart = true,
+  letter,
 }: Props) {
   const T = QUESTIONNAIRE_TEXT[lang];
   const [phase, setPhase] = useState<Phase>("ready");
@@ -117,6 +124,7 @@ export function QuestionnaireVoiceGuide({
   const [isPlaying, setIsPlaying] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [introWaiting, setIntroWaiting] = useState(false);
+  const [letterOpen, setLetterOpen] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -136,6 +144,10 @@ export function QuestionnaireVoiceGuide({
 
   const total = questions.length;
   const question = questions[index] ?? null;
+
+  useEffect(() => {
+    onStartedChange?.(phase !== "ready");
+  }, [phase, onStartedChange]);
 
   useEffect(() => {
     void loadBrandingSettings().then((b) => {
@@ -534,6 +546,21 @@ export function QuestionnaireVoiceGuide({
           <p className="mt-1 text-sm text-gray-600" lang={lang}>
             {T.finishedBody}
           </p>
+          {letter ? (
+            <>
+              <button
+                type="button"
+                onClick={() => setLetterOpen(true)}
+                className="mt-4 inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:brightness-110"
+                style={{ backgroundColor: primaryColor }}
+                lang={lang}
+              >
+                <FileText size={16} />
+                {T.viewLetter}
+              </button>
+              <RelievingLetterDialog data={letter} open={letterOpen} onOpenChange={setLetterOpen} primaryColor={primaryColor} />
+            </>
+          ) : null}
         </div>
         <QuestionnaireFields questions={questions} answers={answers} onChange={onChange} primaryColor={primaryColor} lang={lang} />
         <button type="button" onClick={restart} className="text-sm font-medium underline" style={{ color: primaryColor }}>
@@ -552,7 +579,19 @@ export function QuestionnaireVoiceGuide({
       <div>
         <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">
           <span lang={lang}>{T.questionOf(index + 1, total)}</span>
-          <span lang={lang}>{T.assistant}</span>
+          {letter ? (
+            <span
+              className="inline-flex items-center gap-1.5 rounded-full border border-gray-300 bg-gray-50 px-3 py-1 text-[11px] font-semibold normal-case tracking-normal text-gray-400"
+              title={T.letterLockedHint}
+              aria-label={`${T.letterLocked}. ${T.letterLockedHint}`}
+              lang={lang}
+            >
+              <Lock size={12} />
+              {T.letterLocked}
+            </span>
+          ) : (
+            <span lang={lang}>{T.assistant}</span>
+          )}
         </div>
         <div className="mt-2 h-1 overflow-hidden rounded-full bg-gray-100">
           <div

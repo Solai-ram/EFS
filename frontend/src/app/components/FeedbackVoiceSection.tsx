@@ -841,7 +841,7 @@ export function FeedbackVoiceSection({
             <button
               type="button"
               onClick={toggleRecording}
-              className="flex h-12 w-full items-center justify-center gap-2 rounded-xl px-6 text-base font-semibold text-white shadow-[0_8px_20px_-8px_rgb(74_13_31/0.45)] transition-all hover:brightness-110 active:translate-y-px"
+              className="flex h-12 w-full items-center justify-center gap-2 rounded-xl px-6 text-base font-semibold text-white shadow-[0_8px_20px_-8px_rgb(24_18_18/0.45)] transition-all hover:brightness-110 active:translate-y-px"
               style={{ backgroundColor: primaryColor }}
             >
               <Check size={18} strokeWidth={2.5} />
@@ -876,7 +876,7 @@ export function FeedbackVoiceSection({
               <span
                 className={`relative grid h-24 w-24 place-items-center rounded-full transition-all duration-200 group-focus-visible:ring-4 group-focus-visible:ring-primary/25 group-focus-visible:ring-offset-2 ${
                   micIsPrimary
-                    ? "text-white shadow-[0_14px_30px_-10px_rgb(74_13_31/0.55)] group-hover:scale-105 group-active:scale-100"
+                    ? "text-white shadow-[0_14px_30px_-10px_rgb(24_18_18/0.55)] group-hover:scale-105 group-active:scale-100"
                     : recordingState === "completed"
                       ? "border border-gray-200 bg-white text-gray-500"
                       : "border border-gray-200 bg-gray-100 text-gray-400"
