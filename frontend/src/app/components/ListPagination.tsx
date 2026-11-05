@@ -75,7 +75,7 @@ export function ListPagination({
       </div>
 
       {totalPages > 1 ? (
-        <nav className="flex items-center gap-1" aria-label="Pagination">
+        <nav className="flex flex-wrap items-center gap-1" aria-label="Pagination">
           <button
             type="button"
             aria-label="Previous page"

@@ -559,7 +559,7 @@ export function AdminUsersPage() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by name, role or department…"
+              placeholder="Search users…"
               aria-label="Search users"
               className={`${FIELD_CLASS} py-2 pl-9 ${search ? "pr-9" : ""}`}
             />

@@ -334,7 +334,7 @@ export function RecentFeedbackBySentiment({
                 type="search"
                 value={searchText}
                 onChange={(e) => setSearchText(e.target.value)}
-                placeholder="Search by employee name"
+                placeholder="Search employee"
                 aria-label="Search by employee name"
                 className="h-9 w-full rounded-lg border border-gray-200 bg-white pl-9 pr-9 text-sm text-gray-900 outline-none placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/15"
               />
@@ -354,7 +354,7 @@ export function RecentFeedbackBySentiment({
               <div
                 role="group"
                 aria-label="Load period"
-                className="grid flex-1 grid-cols-4 gap-0.5 rounded-lg border border-gray-200 bg-white p-0.5 sm:inline-flex sm:flex-none"
+                className="grid flex-1 grid-cols-2 gap-0.5 rounded-lg min-[420px]:grid-cols-4 border border-gray-200 bg-white p-0.5 sm:inline-flex sm:flex-none"
               >
                 <button
                   type="button"
@@ -455,7 +455,7 @@ export function RecentFeedbackBySentiment({
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex min-w-0 flex-col gap-1">
+            <div className="col-span-2 flex min-w-0 flex-col gap-1 sm:col-span-1">
               <label className={filterLabel}>Department</label>
               <Select value={departmentFilter} onValueChange={(v) => setDepartmentFilter(v)}>
                 <SelectTrigger className={selectClass}>

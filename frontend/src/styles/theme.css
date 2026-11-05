@@ -189,6 +189,31 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
+  /* Responsive safety net: media never overflows, long words wrap, and form controls stay
+     at 16px on phones so iOS does not zoom the page when one is focused. */
+  img, video, canvas, svg {
+    max-width: 100%;
+  }
+  body {
+    overflow-wrap: anywhere;
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+  @media (max-width: 639px) {
+    input:not([type="checkbox"]):not([type="radio"]),
+    select,
+    textarea {
+      font-size: 16px;
+    }
+  }
+  /* Very small phones (Galaxy Fold, iPhone SE 1): tighter page gutters. */
+  @media (max-width: 359px) {
+    main {
+      padding-left: 0.5rem !important;
+      padding-right: 0.5rem !important;
+    }
+  }
+
   ::selection {
     background: #fbd98b;
     color: #7a0f13;
@@ -201,6 +226,9 @@
 
   html {
     font-size: var(--font-size);
+    /* Phones: stop iOS inflating text after rotation. */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
     /* Always keep the scrollbar track, so switching between a short page (or a page still
        loading) and a long one never makes the whole layout jump sideways. Phones and Macs
        use overlay scrollbars, so nothing extra shows there. */

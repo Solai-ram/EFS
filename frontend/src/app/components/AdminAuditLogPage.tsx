@@ -101,7 +101,7 @@ export function AdminAuditLogPage() {
             <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               className={`${field} w-full pl-8`}
-              placeholder="Feedback ID, employee ID…"
+              placeholder="ID or employee…"
               value={q}
               onChange={(e) => change(setQ)(e.target.value)}
             />

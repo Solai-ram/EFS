@@ -67,6 +67,12 @@ const RoutingService =
 async function main() {
   const adminUsername = (process.env.SEED_ADMIN_USERNAME || "admin").trim().toLowerCase();
   const adminPassword = process.env.SEED_ADMIN_PASSWORD || "admin123";
+  // The built-in demo password must never reach a real server.
+  if (process.env.NODE_ENV === "production" && (adminPassword === "admin123" || adminPassword.length < 8)) {
+    throw new Error(
+      "Set SEED_ADMIN_PASSWORD in backend/.env to a strong password (8+ characters, not the demo one) before seeding in production."
+    );
+  }
 
   await mongoose.connect(MONGODB_URI);
   const salt = await bcrypt.genSalt(10);

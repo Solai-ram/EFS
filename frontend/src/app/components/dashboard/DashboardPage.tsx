@@ -373,7 +373,7 @@ function PeriodPicker({
     "h-9 rounded-lg border border-gray-300 bg-white px-2 text-sm text-gray-800 outline-none focus:border-primary";
   return (
     <div className="flex min-w-0 flex-col gap-2 sm:items-end">
-      <div className="flex min-w-0 items-start gap-2 sm:items-center">
+      <div className="flex min-w-0 items-stretch gap-2 sm:items-center">
         {/* Phones: a 2×2 grid so every period is visible; one row from small tablets up. */}
         <div
           className="relative grid min-w-0 flex-1 grid-cols-2 gap-0.5 rounded-xl border sm:inline-flex sm:flex-none sm:gap-0 border-[#F2E7D5] bg-white p-1 shadow-[0_1px_2px_rgba(33,29,26,0.04)]"
@@ -389,7 +389,7 @@ function PeriodPicker({
                 role="tab"
                 aria-selected={active}
                 onClick={() => onChange({ ...range, period: p })}
-                className={`relative shrink-0 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-semibold transition-colors sm:py-1.5 ${
+                className={`relative min-h-10 shrink-0 whitespace-nowrap rounded-lg px-3 py-2 text-center text-sm font-semibold transition-colors sm:min-h-0 sm:py-1.5 ${
                   active ? "text-white" : "text-gray-600 hover:text-gray-900"
                 }`}
               >
@@ -410,7 +410,7 @@ function PeriodPicker({
           onClick={onRefresh}
           disabled={busy}
           aria-label="Refresh"
-          className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#F2E7D5] bg-white text-gray-600 shadow-[0_1px_2px_rgba(33,29,26,0.04)] hover:bg-gray-50 disabled:opacity-50"
+          className="inline-flex h-auto min-h-10 w-10 shrink-0 items-center justify-center self-stretch rounded-xl border border-[#F2E7D5] bg-white text-gray-600 sm:self-auto sm:h-10 shadow-[0_1px_2px_rgba(33,29,26,0.04)] hover:bg-gray-50 disabled:opacity-50"
         >
           <RefreshCw size={16} className={busy ? "animate-spin" : ""} />
         </button>

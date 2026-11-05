@@ -3,12 +3,12 @@
 # Other feedback stacks run on the same server (e.g. project "apdch_pfs" on slot 7, and "pfs").
 # Every name, port and volume here is distinct so `docker compose up` never touches them.
 #
-# Host ports follow the server's 100N / 200N / 300N scheme, slot 8.
-# CONFIRM slot 8 is free on the VPS before the first `docker compose up`; change the three
+# Host ports follow the server's 100N / 200N / 300N scheme, slot 10.
+# CONFIRM slot 10 is free on the VPS before the first `docker compose up`; change the three
 # numbers below (and nginx/efs.mapims.edu.in.conf) if it is taken.
-#   1008 → frontend (SPA + /api proxied to the backend); host nginx serves the domain from here
-#   2008 → backend API, localhost only (debugging from the VPS)
-#   3008 → MongoDB, localhost only (mongosh / backups from the VPS)
+#   1010 → frontend (SPA + /api proxied to the backend); host nginx serves the domain from here
+#   2010 → backend API, localhost only (debugging from the VPS)
+#   3010 → MongoDB, localhost only (mongosh / backups from the VPS)
 # Volumes are prefixed with the project name: mapims_efs_mongo_data, mapims_efs_uploads_data.
 
 name: mapims_efs
@@ -19,7 +19,7 @@ services:
     container_name: mapims_efs_mongo
     restart: unless-stopped
     ports:
-      - "127.0.0.1:3008:27017"
+      - "127.0.0.1:3010:27017"
     environment:
       TZ: Asia/Kolkata
       MONGO_INITDB_DATABASE: mapims_efs
@@ -35,7 +35,7 @@ services:
     container_name: mapims_efs_backend
     restart: unless-stopped
     ports:
-      - "127.0.0.1:2008:5000"
+      - "127.0.0.1:2010:5000"
     environment:
       PORT: "5000"
       MONGODB_URI: mongodb://mongodb:27017/mapims_efs
@@ -67,7 +67,7 @@ services:
     container_name: mapims_efs_frontend
     restart: unless-stopped
     ports:
-      - "1008:80"
+      - "1010:80"
     depends_on:
       - backend
     networks:

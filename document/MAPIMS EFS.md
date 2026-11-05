@@ -59,7 +59,7 @@ Admin > Questions has three tabs. **New joiner** and **Relieving** let HR edit e
 
 ## Deploy
 
-`docker-compose.yml` project `mapims_efs`, host ports 1008 / 2008 / 3008, nginx file `nginx/efs.mapims.edu.in.conf`. Confirm the slot and domain with the VPS owner before first `up`.
+`docker-compose.yml` project `mapims_efs`, host ports 1010 / 2010 / 3010, nginx file `nginx/efs.mapims.edu.in.conf`. Confirm the slot and domain with the VPS owner before first `up`.
 
 ## Open content items
 
