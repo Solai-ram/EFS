@@ -1,6 +1,7 @@
 import { Navigate, Outlet, useLocation } from "react-router";
 import { getSession } from "../lib/auth";
 import { employeeRoutes } from "../lib/employeeRoutes";
+import { LoginPage } from "./LoginPage";
 
 /**
  * Route guards check CAPABILITIES, not role names, so a role whose permissions
@@ -46,7 +47,7 @@ export function StaffGuard() {
   const session = getSession();
 
   if (!session) {
-    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+    return <Navigate to="/admin" replace state={{ from: location.pathname }} />;
   }
 
   return <Outlet />;
@@ -61,7 +62,7 @@ export function RequireCapability({ anyOf }: { anyOf: string[] }) {
   const session = getSession();
 
   if (!session) {
-    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+    return <Navigate to="/admin" replace state={{ from: location.pathname }} />;
   }
 
   if (!hasAnyCapability(...anyOf)) {
@@ -81,7 +82,7 @@ export function insightsLandingPath(basePath: string): string {
 /** Where a user belongs after login, based on what they can actually do. */
 export function landingRouteForSession(): string {
   const session = getSession();
-  if (!session) return "/login";
+  if (!session) return "/admin";
   const held = session.capabilities ?? [];
   if (held.includes(CAPABILITY.ROLES_MANAGE) || held.includes(CAPABILITY.USERS_MANAGE)) {
     return "/admin";
@@ -96,8 +97,9 @@ export function AdminGuard() {
   const location = useLocation();
   const session = getSession();
 
+  // Not signed in: /admin (and every admin screen) is the sign-in page.
   if (!session) {
-    return <Navigate to="/login" replace state={{ from: "/admin" }} />;
+    return <LoginPage />;
   }
 
   const canReachAdmin = hasAnyCapability(

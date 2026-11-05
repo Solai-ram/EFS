@@ -19,8 +19,9 @@ export const router = createBrowserRouter([
     path: "/",
     Component: Layout,
     children: [
-      { index: true, Component: LoginPage },
-      { path: "login", Component: LoginPage },
+      // Employees land on the welcome page; staff sign in at /admin (the admin guard shows the form).
+      { index: true, element: <Navigate to="/welcome" replace /> },
+      { path: "login", element: <Navigate to="/admin" replace /> },
 
       {
         path: "welcome",

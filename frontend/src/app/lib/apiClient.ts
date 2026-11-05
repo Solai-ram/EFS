@@ -62,9 +62,8 @@ function handleExpiredSession(): void {
   clearStoredSession();
   if (redirectingToLogin) return;
   if (typeof window === "undefined") return;
-  if (window.location.pathname === "/login") return;
   redirectingToLogin = true;
-  window.location.assign("/login");
+  window.location.assign("/admin");
 }
 
 /**
