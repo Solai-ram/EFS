@@ -42,7 +42,6 @@ export function EmployeeIdentitySection({
     },
   };
 
-  const optional = <span className="font-normal text-gray-400"> (optional)</span>;
   const today = todayIso();
 
   return (
@@ -51,7 +50,7 @@ export function EmployeeIdentitySection({
         <div>
           <label className={fieldLabel} htmlFor="efs-employee-name">
             {compact ? "Your name · உங்கள் பெயர்" : "Name"}
-            {identity.nameRequired ? required : optional}
+            {identity.nameRequired ? required : null}
           </label>
           <input
             id="efs-employee-name"
@@ -69,7 +68,7 @@ export function EmployeeIdentitySection({
         <div>
           <label className={fieldLabel} htmlFor="efs-employee-id">
             Employee ID
-            {identity.idRequired ? required : optional}
+            {identity.idRequired ? required : null}
           </label>
           <input
             id="efs-employee-id"
@@ -108,14 +107,12 @@ export function EmployeeIdentitySection({
           )}
         </div>
 
+        {/* General feedback does not ask for a date of joining. */}
+        {identity.joiningDateRequired ? (
         <div>
           <label className={fieldLabel} htmlFor="efs-date-of-joining">
             Date of joining
-            {identity.joiningDateRequired ? (
-              required
-            ) : (
-              <span className="font-normal text-gray-400"> (optional)</span>
-            )}
+            {required}
           </label>
           <input
             id="efs-date-of-joining"
@@ -127,6 +124,7 @@ export function EmployeeIdentitySection({
             {...focusHandlers}
           />
         </div>
+        ) : null}
 
         {identity.lastWorkingDayRequired ? (
           <div>
