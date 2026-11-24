@@ -5,7 +5,7 @@
 #
 # Host ports follow the server's 100N / 200N / 300N scheme, slot 10.
 # CONFIRM slot 10 is free on the VPS before the first `docker compose up`; change the three
-# numbers below (and nginx/efs.mapims.edu.in.conf) if it is taken.
+# numbers below (and nginx/staff.feedback.mapims.edu.in.conf) if it is taken.
 #   1010 → frontend (SPA + /api proxied to the backend); host nginx serves the domain from here
 #   2010 → backend API, localhost only (debugging from the VPS)
 #   3010 → MongoDB, localhost only (mongosh / backups from the VPS)

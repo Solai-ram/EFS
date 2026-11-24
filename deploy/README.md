@@ -1,6 +1,6 @@
 # First deploy on the VPS
 
-Needs: Docker with the compose plugin, host nginx, certbot, and DNS for `efs.mapims.edu.in`.
+Needs: Docker with the compose plugin, host nginx, certbot, and DNS for `staff.feedback.mapims.edu.in`.
 
 ```bash
 git clone https://github.com/Solai-ram/EFS.git mapims-efs && cd mapims-efs
@@ -11,8 +11,8 @@ The script checks ports 1010 / 2010 / 3010 are free, creates `backend/.env` with
 Admin and Super Admin passwords (asks for the OpenRouter and Sarvam keys), builds and starts the stack, loads the
 departments and both accounts, and checks the site answers. Re-running it is safe: it keeps your `.env` and users.
 
-Then, as root: copy `nginx/efs.mapims.edu.in.conf` into nginx, reload, and run
-`certbot --nginx -d efs.mapims.edu.in` (the microphone and offline mode need HTTPS).
+Then, as root: copy `nginx/staff.feedback.mapims.edu.in.conf` into nginx, reload, and run
+`certbot --nginx -d staff.feedback.mapims.edu.in` (the microphone and offline mode need HTTPS).
 
 ## Day to day
 - Update: `git pull && docker compose up -d --build`

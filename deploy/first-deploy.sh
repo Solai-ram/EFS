@@ -21,7 +21,7 @@ say "Checking host ports ${PORTS[*]} are free (skipped if this stack is already 
 if ! docker ps --format '{{.Names}}' | grep -q '^mapims_efs_'; then
   for p in "${PORTS[@]}"; do
     if ss -ltn 2>/dev/null | awk '{print $4}' | grep -qE "[:.]${p}$"; then
-      die "port $p is already in use. Pick another slot and edit docker-compose.yml and nginx/efs.mapims.edu.in.conf."
+      die "port $p is already in use. Pick another slot and edit docker-compose.yml and nginx/staff.feedback.mapims.edu.in.conf."
     fi
   done
 fi
@@ -47,8 +47,8 @@ else
   set_kv SEED_SUPERADMIN_USERNAME superadmin
   set_kv SEED_SUPERADMIN_PASSWORD "$(rand 16)"
   set_kv TRUST_PROXY_HOPS 2
-  set_kv OPENROUTER_HTTP_REFERER "https://efs.mapims.edu.in"
-  set_kv FEEDBACK_CORS_ORIGINS "https://efs.mapims.edu.in"
+  set_kv OPENROUTER_HTTP_REFERER "https://staff.feedback.mapims.edu.in"
+  set_kv FEEDBACK_CORS_ORIGINS "https://staff.feedback.mapims.edu.in"
   echo "Generated JWT_SECRET and admin passwords."
   echo "Add your API keys now if you have them (AI sentiment and voice need them):"
   read -r -p "  OPENROUTER_API_KEY (Enter to skip): " k1 || true
@@ -90,11 +90,11 @@ fi
 cat <<'NEXT'
 
 Remaining steps (need root):
-  1. DNS: point efs.mapims.edu.in at this server's IP.
-  2. sudo cp nginx/efs.mapims.edu.in.conf /etc/nginx/sites-available/efs.mapims.edu.in
-     sudo ln -s /etc/nginx/sites-available/efs.mapims.edu.in /etc/nginx/sites-enabled/
+  1. DNS: point staff.feedback.mapims.edu.in at this server's IP.
+  2. sudo cp nginx/staff.feedback.mapims.edu.in.conf /etc/nginx/sites-available/staff.feedback.mapims.edu.in
+     sudo ln -s /etc/nginx/sites-available/staff.feedback.mapims.edu.in /etc/nginx/sites-enabled/
      sudo nginx -t && sudo systemctl reload nginx
   3. HTTPS (the microphone and offline mode need it):
-     sudo certbot --nginx -d efs.mapims.edu.in
-  4. Open https://efs.mapims.edu.in
+     sudo certbot --nginx -d staff.feedback.mapims.edu.in
+  4. Open https://staff.feedback.mapims.edu.in
 NEXT
