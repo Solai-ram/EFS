@@ -1,14 +1,16 @@
 import { useState } from "react";
+import { AdminGeneralTextEditor } from "./AdminGeneralTextEditor";
 import { AdminQuestionnaireEditor } from "./AdminQuestionnaireEditor";
 
 const TABS = [
   { id: "new_joiner", label: "New joiner", hint: "15-day stay interview" },
   { id: "relieving", label: "Relieving", hint: "Exit interview" },
+  { id: "general", label: "General", hint: "Screen wording" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
 
-/** Questions for the two interview types, edited in English and Tamil. General feedback has no questions. */
+/** Questions for the two interviews, and the wording of the General feedback screen, edited in English and Tamil. */
 export function AdminBotConversationPage() {
   const [tab, setTab] = useState<TabId>("new_joiner");
   return (
@@ -16,8 +18,9 @@ export function AdminBotConversationPage() {
       <div>
         <h1 className="text-2xl font-bold text-gray-800">Questions</h1>
         <p className="mt-1 text-sm text-gray-600">
-          Edit what employees are asked in each interview. Changes apply to the next employee who opens the form.
-          General feedback is free speaking or typing, so it has no questions.
+          Edit what employees are asked in each interview, and the wording on the General feedback screen. Changes
+          apply to the next employee who opens the form. General feedback has no questions, only free speaking or
+          typing.
         </p>
       </div>
       <div className="flex gap-1 rounded-xl border border-gray-200 bg-gray-50 p-1" role="tablist" aria-label="Interview type">
@@ -37,7 +40,7 @@ export function AdminBotConversationPage() {
           </button>
         ))}
       </div>
-      <AdminQuestionnaireEditor key={tab} feedbackType={tab} />
+      {tab === "general" ? <AdminGeneralTextEditor /> : <AdminQuestionnaireEditor key={tab} feedbackType={tab} />}
     </div>
   );
 }

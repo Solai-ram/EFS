@@ -21,6 +21,7 @@ import { QuestionnaireFields } from "./QuestionnaireFields";
 import { QuestionnaireVoiceGuide } from "./QuestionnaireVoiceGuide";
 import { parseFeedbackType } from "../lib/feedbackTypes";
 import { QUESTIONNAIRE_TEXT, type QuestionnaireLanguage } from "../lib/questionnaireLanguage";
+import { useGeneralText } from "../lib/useGeneralText";
 import {
   estimateRating,
   firstMissingQuestion,
@@ -186,12 +187,12 @@ export function FeedbackForm() {
       }
     } else if (inputKind === "type") {
       if (!comments.trim()) {
-        setSubmitError("Please write your feedback first.");
+        setSubmitError(g.errWrite);
         return;
       }
     } else {
       if (!voiceReady || selectedEmotion == null) {
-        setSubmitError("Please speak your feedback first.");
+        setSubmitError(g.errSpeak);
         return;
       }
       if (transcriptionPending) {
@@ -310,15 +311,26 @@ export function FeedbackForm() {
       ? voiceReady
       : Boolean(comments.trim());
 
+  const g = useGeneralText(lang ?? "en");
   const linkClass = "inline text-left font-semibold underline decoration-1 underline-offset-2 hover:decoration-2";
 
-  if (isQuestionnaire && !lang) {
+  if (!lang) {
     return (
       <div className="max-w-3xl mx-auto">
         <EmployeeCard
-          kicker="AI voice guide"
-          title={feedbackType === "new_joiner" ? "New joiner stay interview" : "Exit interview"}
-          subtitle="Questions in English or Tamil · பதில் குரலில்"
+          kicker={isQuestionnaire ? "AI voice guide" : "General feedback"}
+          title={
+            feedbackType === "new_joiner"
+              ? "New joiner stay interview"
+              : feedbackType === "relieving"
+                ? "Exit interview"
+                : "Share your feedback"
+          }
+          subtitle={
+            isQuestionnaire
+              ? "Questions in English or Tamil · பதில் குரலில்"
+              : "English or Tamil · ஆங்கிலம் அல்லது தமிழ்"
+          }
         >
           <div className="space-y-7 py-2 md:py-6">
             <div className="text-center">
@@ -388,10 +400,13 @@ export function FeedbackForm() {
             </div>
 
             <p className="mx-auto max-w-md text-center text-sm leading-relaxed text-gray-500">
-              The questions, the AI voice guide and your spoken answers will use this language. You can change it
-              later.
+              {isQuestionnaire
+                ? "The questions, the AI voice guide and your spoken answers will use this language. You can change it later."
+                : "This screen and your spoken feedback will use this language. You can change it later."}
               <span className="mt-1 block" lang="ta">
-                கேள்விகள், குரல் வழிகாட்டி மற்றும் உங்கள் பதில்கள் இந்த மொழியிலேயே இருக்கும்.
+                {isQuestionnaire
+                  ? "கேள்விகள், குரல் வழிகாட்டி மற்றும் உங்கள் பதில்கள் இந்த மொழியிலேயே இருக்கும்."
+                  : "இந்தத் திரையும் நீங்கள் பேசும் கருத்தும் இந்த மொழியிலேயே இருக்கும்."}
               </span>
             </p>
           </div>
@@ -410,15 +425,15 @@ export function FeedbackForm() {
             : feedbackType === "relieving"
               ? "Relieving · Exit interview"
               : inputKind === "voice"
-                ? "Speak freely"
-                : "Type freely"
+                ? g.kickerVoice
+                : g.kickerType
         }
         title={
           feedbackType === "new_joiner"
             ? "How is your first month going?"
             : feedbackType === "relieving"
               ? "Before you go, tell us about your time here"
-              : "What would you like to tell us?"
+              : g.title
         }
         subtitle={
           feedbackType === "new_joiner"
@@ -426,14 +441,14 @@ export function FeedbackForm() {
             : feedbackType === "relieving"
               ? "Your honest views help us improve employment practices. Finish the interview to view your relieving letter."
               : inputKind === "voice"
-                ? "Say it in your own words — Tamil, Hindi or English."
-                : "Write it in your own words, in any language. Your feedback reaches the team that can act on it."
+                ? g.subtitleVoice
+                : g.subtitleType
         }
       >
         {isQuestionnaire && guideStarted ? null : (
         <section className="mb-8">
-          <StepHeading step={1} title="Your details" primaryColor={primaryColor} />
-          <EmployeeIdentitySection identity={identity} primaryColor={primaryColor} />
+          <StepHeading step={1} title={g.stepDetails} primaryColor={primaryColor} />
+          <EmployeeIdentitySection identity={identity} primaryColor={primaryColor} lang={lang ?? "en"} />
           {isQuestionnaire && guideStarted ? null : (
             <StatusNote
               primaryColor={primaryColor}
@@ -460,30 +475,36 @@ export function FeedbackForm() {
                   </button>
                 </>
               ) : inputKind === "voice" ? (
-                identity.identityReady ? (
-                  <>Ready to listen{identity.resolvedEmployeeName ? `, ${identity.resolvedEmployeeName}` : ""}. Tap below to share your experience.</>
-                ) : (
-                  "Please choose your department before speaking."
-                )
+                <>
+                  {identity.identityReady ? g.ready : g.pickDepartment}{" "}
+                  <button
+                    type="button"
+                    onClick={() => setLang(null)}
+                    className={linkClass}
+                    style={{ color: primaryColor }}
+                  >
+                    {g.changeLanguage}
+                  </button>
+                </>
               ) : (
                 <>
-                  Prefer to speak?{" "}
+                  {g.preferSpeak}{" "}
                   <button
                     type="button"
                     onClick={() => navigate("/feedback/give?mode=voice&type=general", { replace: true })}
                     className={linkClass}
                     style={{ color: primaryColor }}
                   >
-                    Use voice instead
-                  </button>{" "}
-                  (Tamil, Hindi &amp; English). Or{" "}
+                    {g.useVoice}
+                  </button>
+                  {" · "}
                   <button
                     type="button"
-                    onClick={() => navigate("/feedback")}
+                    onClick={() => setLang(null)}
                     className={linkClass}
                     style={{ color: primaryColor }}
                   >
-                    pick again on the previous screen
+                    {g.changeLanguage}
                   </button>
                 </>
               )}
@@ -569,11 +590,12 @@ export function FeedbackForm() {
           <section className="mb-6">
             <StepHeading
               step={2}
-              title="Share your experience"
-              hint="Choose a language if you like, then tap the microphone and speak naturally."
+              title={g.stepShare}
+              hint={g.hintVoice}
               primaryColor={primaryColor}
             />
             <FeedbackVoiceSection
+              initialSpeechLanguage={lang === "ta" ? "ta-IN" : "en-IN"}
               identityReady={identity.identityReady}
               primaryColor={primaryColor}
               resetRevision={voiceRevision}
@@ -590,14 +612,14 @@ export function FeedbackForm() {
           <section className="mb-8">
             <StepHeading
               step={2}
-              title="Your feedback"
-              hint="Write anything you want us to know: what is working, what is not, or an idea."
+              title={g.stepFeedback}
+              hint={g.hintType}
               primaryColor={primaryColor}
             />
             <textarea
               value={comments}
               onChange={(e) => setComments(e.target.value)}
-              placeholder="Type your feedback here…"
+              placeholder={g.placeholder}
               maxLength={4000}
               className="h-44 w-full resize-none rounded-xl border border-gray-300 bg-white px-4 py-3 text-base text-gray-900 outline-none transition placeholder:text-gray-400 md:h-52"
               onFocus={(e) => {
@@ -627,10 +649,10 @@ export function FeedbackForm() {
           {isSubmitting ? (
             <>
               <span className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent" />
-              {submitPhase === "voice" ? "Almost done..." : "Submitting..."}
+              {submitPhase === "voice" ? g.almostDone : g.submitting}
             </>
           ) : (
-            "Submit feedback"
+            g.submit
           )}
         </PrimaryAction>
         )}
@@ -642,7 +664,7 @@ export function FeedbackForm() {
       </EmployeeCard>
 
       <EmployeeFooter
-        timing={isQuestionnaire ? "Takes about 5 minutes" : "Takes less than a minute"}
+        timing={isQuestionnaire ? "Takes about 5 minutes" : g.timing}
         onBack={() => navigate("/feedback")}
       />
     </div>

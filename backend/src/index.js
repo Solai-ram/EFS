@@ -60,6 +60,7 @@ import { introText, registerQuestionnaireSpeechRoutes } from "./questionnaireSpe
 import { computeHrAnalytics } from "./hrAnalytics.js";
 import { recordAudit, registerAuditRoutes } from "./auditLog.js";
 import { loadQuestionnaireOverrides, registerQuestionnaireAdminRoutes } from "./questionnaireAdmin.js";
+import { registerUiTextRoutes } from "./uiText.js";
 import {
   CAPABILITIES,
   attachUser,
@@ -499,6 +500,7 @@ app.get("/api/questionnaires/:type", (req, res) => {
 
 registerQuestionnaireSpeechRoutes(app, { limiter: limitSpeechToText });
 registerQuestionnaireAdminRoutes(app);
+registerUiTextRoutes(app);
 registerAuditRoutes(app);
 
 app.get("/api/health", (_req, res) => {

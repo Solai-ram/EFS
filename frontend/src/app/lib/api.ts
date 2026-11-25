@@ -297,6 +297,42 @@ export async function resetAdminQuestionnaire(type: AdminQuestionnaire["type"]):
   return body as AdminQuestionnaire;
 }
 
+export type GeneralTextOverrides = {
+  en: Record<string, string>;
+  ta: Record<string, string>;
+};
+
+function toOverrides(body: unknown): GeneralTextOverrides {
+  const data = body as Partial<GeneralTextOverrides>;
+  return { en: data?.en || {}, ta: data?.ta || {} };
+}
+
+/** Public: the edited wording for the General feedback screen (empty when nothing was edited). */
+export async function getGeneralTextOverrides(): Promise<GeneralTextOverrides> {
+  const response = await apiFetch(`${API_BASE_URL}/api/ui-text/general`, { cache: "no-store" });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(readApiErrorMessage(body) || "Could not load the screen text");
+  return toOverrides(body);
+}
+
+export async function saveGeneralTextOverrides(next: GeneralTextOverrides): Promise<GeneralTextOverrides> {
+  const response = await apiFetch(`${API_BASE_URL}/api/admin/ui-text/general`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(next),
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(readApiErrorMessage(body) || "Could not save the screen text");
+  return toOverrides(body);
+}
+
+export async function resetGeneralTextOverrides(): Promise<GeneralTextOverrides> {
+  const response = await apiFetch(`${API_BASE_URL}/api/admin/ui-text/general/reset`, { method: "POST" });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(readApiErrorMessage(body) || "Could not reset the screen text");
+  return toOverrides(body);
+}
+
 export interface HrAnalytics {
   totalSessions: number;
   uniqueEmployees: number;

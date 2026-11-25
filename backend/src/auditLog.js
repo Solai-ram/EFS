@@ -31,6 +31,8 @@ export const AUDIT_ACTIONS = {
   "settings.updated": "Changed settings",
   "questions.updated": "Edited questions",
   "questions.reset": "Reset questions",
+  "uitext.updated": "Edited screen text",
+  "uitext.reset": "Reset screen text",
   "reports.generated": "Generated reports",
 };
 

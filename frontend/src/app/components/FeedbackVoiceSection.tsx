@@ -40,6 +40,8 @@ function mergeSegments(map: Map<number, string>): string {
 }
 
 export interface FeedbackVoiceSectionProps {
+  /** Speech language preselected in the picker (the employee can still change it). */
+  initialSpeechLanguage?: SpeechLanguageCode;
   /** Name and department are filled in — recording is allowed. */
   identityReady: boolean;
   primaryColor: string;
@@ -60,6 +62,7 @@ export interface FeedbackVoiceSectionProps {
 }
 
 export function FeedbackVoiceSection({
+  initialSpeechLanguage = "unknown",
   identityReady,
   primaryColor,
   resetRevision,
@@ -75,7 +78,7 @@ export function FeedbackVoiceSection({
 }: FeedbackVoiceSectionProps) {
   const isStaffRemarks = variant === "staffRemarks";
   const [speechLanguageCode, setSpeechLanguageCode] =
-    useState<SpeechLanguageCode>("unknown");
+    useState<SpeechLanguageCode>(initialSpeechLanguage);
   const [recordingState, setRecordingState] = useState<RecordingState>("idle");
   const [localTranscript, setLocalTranscript] = useState("");
   /** Shown during recording — how many parts have finished uploading (not guaranteed order) */

@@ -365,6 +365,18 @@ export const User = mongoose.model("User", userSchema);
 export const Feedback = mongoose.model("Feedback", feedbackSchema);
 export const Branding = mongoose.model("Branding", brandingSchema);
 export const QuestionnaireConfig = mongoose.model("QuestionnaireConfig", questionnaireConfigSchema);
+
+/** Admin-edited wording for an employee screen. Only changed phrases are stored: { en: {key: text}, ta: {...} }. */
+const uiTextSchema = new mongoose.Schema(
+  {
+    screen: { type: String, required: true, unique: true, trim: true },
+    en: { type: mongoose.Schema.Types.Mixed, default: {} },
+    ta: { type: mongoose.Schema.Types.Mixed, default: {} },
+    updatedBy: { type: String, default: "" },
+  },
+  { timestamps: true, minimize: false }
+);
+export const UiText = mongoose.model("UiText", uiTextSchema);
 export const SummaryReport = mongoose.model("SummaryReport", summaryReportSchema);
 export const BotConversationConfig = mongoose.model(
   "BotConversationConfig",

@@ -1,11 +1,15 @@
 import type { FocusEvent } from "react";
 import { DepartmentSearchSelect } from "./DepartmentSearchSelect";
 import type { EmployeeIdentityState } from "../lib/useEmployeeIdentity";
+import type { QuestionnaireLanguage } from "../lib/questionnaireLanguage";
+import { useGeneralText } from "../lib/useGeneralText";
 
 type EmployeeIdentitySectionProps = {
   identity: EmployeeIdentityState;
   primaryColor: string;
   compact?: boolean;
+  /** Language the labels are shown in. Defaults to English. */
+  lang?: QuestionnaireLanguage;
 };
 
 function todayIso(): string {
@@ -20,7 +24,9 @@ export function EmployeeIdentitySection({
   identity,
   primaryColor,
   compact = false,
+  lang = "en",
 }: EmployeeIdentitySectionProps) {
+  const t = useGeneralText(lang);
   const inputClass =
     "w-full h-12 px-4 text-base text-gray-900 bg-white border border-gray-300 rounded-xl outline-none transition placeholder:text-gray-400 hover:border-gray-400";
   const fieldLabel = "mb-1.5 block text-sm font-medium text-gray-700";
@@ -49,7 +55,7 @@ export function EmployeeIdentitySection({
       <div className={compact ? "space-y-4" : "grid grid-cols-1 gap-4 md:grid-cols-2"}>
         <div>
           <label className={fieldLabel} htmlFor="efs-employee-name">
-            {compact ? "Your name · உங்கள் பெயர்" : "Name"}
+            {compact ? "Your name · உங்கள் பெயர்" : t.name}
             {identity.nameRequired ? required : null}
           </label>
           <input
@@ -59,7 +65,7 @@ export function EmployeeIdentitySection({
             maxLength={200}
             value={identity.employeeName}
             onChange={(e) => identity.setEmployeeName(e.target.value)}
-            placeholder="Full name"
+            placeholder={t.namePlaceholder}
             className={inputClass}
             {...focusHandlers}
           />
@@ -67,7 +73,7 @@ export function EmployeeIdentitySection({
 
         <div>
           <label className={fieldLabel} htmlFor="efs-employee-id">
-            Employee ID
+            {t.employeeId}
             {identity.idRequired ? required : null}
           </label>
           <input
@@ -77,7 +83,7 @@ export function EmployeeIdentitySection({
             maxLength={40}
             value={identity.employeeId}
             onChange={(e) => identity.setEmployeeId(e.target.value)}
-            placeholder="e.g. EMP-1024"
+            placeholder={t.idPlaceholder}
             className={inputClass}
             {...focusHandlers}
           />
@@ -85,7 +91,7 @@ export function EmployeeIdentitySection({
 
         <div>
           <label className={fieldLabel}>
-            Department
+            {t.department}
             {required}
           </label>
           {identity.hospitalDepartments.length > 0 ? (
@@ -93,14 +99,14 @@ export function EmployeeIdentitySection({
               departments={identity.hospitalDepartments}
               value={identity.department}
               onChange={identity.setDepartment}
-              placeholder="Select department"
+              placeholder={t.selectDepartment}
             />
           ) : (
             <input
               type="text"
               value={identity.department}
               onChange={(e) => identity.setDepartment(e.target.value)}
-              placeholder="Department"
+              placeholder={t.departmentPlaceholder}
               className={inputClass}
               {...focusHandlers}
             />
